@@ -25,6 +25,8 @@ the operator is a professional who will keep the engagement inside scope. See
 - **Venice-native tooling**. Venice's own MCP server (31 tools) and the 20
   official Venice API skills, so the agent can call Venice beyond chat:
   embeddings, image, video, audio, music, characters, web augment, crypto RPC.
+- **Hoplon identity**. A custom bronze-and-iron `hoplon` theme plus a TUI plugin
+  that replaces the stock OpenCode logo with the HOPLON home banner.
 
 ## Layout
 
@@ -37,6 +39,7 @@ hoplon/
     omo.jsonc            OMO agent + category routing (all Venice)
     tui.json             theme and TUI settings
   themes/hoplon.json     the hoplon skin
+  tui/hoplon-brand.tsx   TUI plugin: HOPLON home-screen banner
   agents/                six red-team subagents (markdown)
   skills/                5 red-team skills + 20 vendored Venice API skills
   scripts/install.sh     binary fetch + optional OMO cache pre-seed
@@ -132,17 +135,15 @@ models are used where it counts, with strong agentic models for pure coding.
 
 | Agent | Model |
 | --- | --- |
-| sisyphus, prometheus, hephaestus, atlas, build, plan, reviewer, frontend | `venice/qwen-3-6-plus` |
-| oracle, metis, momus | `venice/aion-labs-aion-3-5` |
+| sisyphus, prometheus, oracle, hephaestus, atlas, build, plan, reviewer, frontend | `venice/qwen-3-6-plus` |
+| metis, momus, multimodal-looker | `venice/qwen-3-8-27b` |
 | sisyphus-junior, explore, librarian | `venice/olafangensan-glm-4.7-flash-heretic` |
-| multimodal-looker | `venice/qwen-3-8-27b` |
 
 ### Categories
 
 | Category | Model |
 | --- | --- |
-| visual-engineering, deep, unspecified-high | `venice/qwen-3-6-plus` |
-| ultrabrain | `venice/aion-labs-aion-3-5` |
+| visual-engineering, deep, ultrabrain, unspecified-high | `venice/qwen-3-6-plus` |
 | quick, unspecified-low | `venice/olafangensan-glm-4.7-flash-heretic` |
 | artistry, writing | `venice/venice-uncensored-1-2` |
 
@@ -159,6 +160,17 @@ The declared models, with their context and output limits, are:
 | `z-ai-glm-5-3-flash` | 1,000,000 | 131,072 | Strong agentic coder |
 | `deepseek-v4-pro-0813` | 1,000,000 | 32,768 | Default-code model |
 
+Routing is tuned for uncensored use. Every route is one of Venice's eleven
+`uncensored` models; the rest of the catalog is avoided because upstream hosts
+(Anthropic, OpenAI, Google, xAI) can still filter even though Venice itself
+does not. Reasoning effort is only assigned to models that advertise
+`supportsReasoningEffort` (`qwen-3-8-27b`, `olafangensan-glm-4.7-flash-heretic`),
+and sampling follows Venice's published per-model constraints where they exist
+(`qwen-3-6-plus`: temperature 0.7, top_p 0.8). Venice's own system prompt stays
+enabled because it is what instructs the models to answer directly and skip
+refusals and disclaimers; it can be disabled per model with the
+`:include_venice_system_prompt=false` suffix when it fights a tool instruction.
+
 ### Venice-only features
 
 The OpenAI-compatible adapter passes the model string through verbatim, so
@@ -173,10 +185,13 @@ agent or category model string when a task needs them.
 
 ## MCP servers
 
-The Venice server and two recon/intel servers are enabled by default. The weapon
+The Venice server is enabled by default. Shodan and the CVE server are present
+but off until you add API keys, because they fail without them. The weapon
 servers are present but disabled, and are enabled per specialist agent through
 each agent's `tools` map. Every server that wraps a CLI tool requires the
-underlying binary on `PATH`.
+underlying binary on `PATH`. The Venice MCP server's two prompts
+(`uncensored-research`, `image-style-explorer`) log a harmless argument error at
+startup; the tools themselves work.
 
 `venice` is Venice's own MCP server: 31 tools over the full Venice API (chat,
 embeddings, image, video, audio, music, characters, augment/web search, models,
@@ -284,7 +299,14 @@ rather than committed.
 
 ## Verified
 
-The launcher was tested to keep OMO routing on Venice when a host OMO config
-sits above the working directory, and to restore that host config on exit. The
-takeover is transparent: the host file is backed up, swapped for the session,
-and put back when opencode exits, including on interrupt.
+- **Routing.** OMO resolves every agent to a Venice uncensored model. The
+  launcher keeps that routing when a host OMO config sits above the working
+  directory, and restores the host config on exit (backed up, swapped for the
+  session, put back on quit or interrupt).
+- **Branding.** The TUI loads `theme: hoplon` and the `hoplon-brand` TUI plugin,
+  which replaces the stock OpenCode logo with the HOPLON banner (`offensive
+  security console`). Confirmed from a captured TUI run.
+- **Boot.** A keyless boot is clean: the Venice MCP server starts, and shodan and
+  cve stay disabled so they do not log failures.
+- **Config.** `opencode.jsonc` and `omo.jsonc` parse, `bash -n` passes on the
+  launcher and installer, and the tree carries no em or en dashes.

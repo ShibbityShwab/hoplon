@@ -255,13 +255,17 @@
       "enabled": true,
       "timeout": 30000
     },
+    // Shodan recon needs a paid API key, so it is off by default to keep a
+    // keyless boot clean. Set SHODAN_API_KEY in .env and set enabled to true.
     "shodan": {
       "type": "local",
       "command": ["npx", "-y", "@burtthecoder/mcp-shodan"],
       "environment": { "SHODAN_API_KEY": "{env:SHODAN_API_KEY}" },
-      "enabled": true,
+      "enabled": false,
       "timeout": 60000
     },
+    // CVE/vuln intel aggregates free feeds (NVD, EPSS, CISA KEV) but needs its
+    // own install. Off by default; see README to wire it up.
     "cve": {
       "type": "local",
       "command": ["uvx", "--from", "cve-mcp-server", "cve-mcp"],
@@ -271,7 +275,7 @@
         "SHODAN_KEY": "{env:SHODAN_API_KEY}",
         "GREYNOISE_API_KEY": "{env:GREYNOISE_API_KEY}"
       },
-      "enabled": true,
+      "enabled": false,
       "timeout": 60000
     },
     "nmap": {

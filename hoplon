@@ -103,13 +103,14 @@ fi
 # copying keeps this repo the single source of truth on every launch.
 # ---------------------------------------------------------------------------
 OC="$XDG_CONFIG_HOME/opencode"
-mkdir -p "$OC/themes" "$OC/agents" "$HOME/.omo"
+mkdir -p "$OC/themes" "$OC/agents" "$OC/plugins" "$HOME/.omo"
 
 cp -f "$HOPLON_HOME/config/opencode.jsonc" "$OC/opencode.jsonc"
 cp -f "$HOPLON_HOME/config/tui.json"       "$OC/tui.json"
 cp -f "$HOPLON_HOME/config/omo.jsonc"      "$HOME/.omo/omo.jsonc"
 cp -f "$HOPLON_HOME/themes/"*.json         "$OC/themes/"  2>/dev/null || true
 cp -f "$HOPLON_HOME/agents/"*.md           "$OC/agents/"  2>/dev/null || true
+cp -f "$HOPLON_HOME/tui/"*.tsx             "$OC/plugins/" 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Git identity for agent-run commits. Snapshots need no identity; explicit

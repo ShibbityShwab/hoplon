@@ -3,12 +3,21 @@
 //
 // OMO reads the user layer at $HOME/.omo/omo.jsonc plus a project
 // .omo/omo.jsonc walked upward from the working directory. The Hoplon launcher
-// isolates $HOME into this repo and symlinks $HOME/.omo/omo.jsonc to this file,
+// isolates $HOME into this repo and copies this file to $HOME/.omo/omo.jsonc,
 // so the routing below always applies without touching the host's real config.
 //
-// Everything here is routed to Venice AI. Reasoning tiers differ by effort
-// (off / low / high / max) rather than by model; the model is chosen per agent
-// from Venice's uncensored family, falling back to the strongest agentic coder.
+// Every agent and category is routed to a Venice AI *uncensored* model. The
+// 11 uncensored Venice models are the only ones Venice guarantees minimal
+// content filtering on; upstream hosts (Anthropic, OpenAI, Google, xAI) may
+// still filter, so they are avoided here. Sampling follows Venice's published
+// per-model constraints where they exist (qwen-3-6-plus: temperature 0.7,
+// top_p 0.8). Reasoning effort is only given to models that advertise
+// supportsReasoningEffort (qwen-3-8-27b, olafangensan-glm-4.7-flash-heretic).
+//
+//   qwen-3-6-plus                     uncensored flagship: code + reasoning + vision + tools, 1M ctx
+//   qwen-3-8-27b                      uncensored: tunable effort (up to xhigh) + vision, 262K ctx
+//   olafangensan-glm-4.7-flash-heretic uncensored: cheap, tunable effort, 200K ctx
+//   venice-uncensored-1-2             most_uncensored trait: chat + vision, 128K ctx
 // =============================================================================
 {
   "[opencode]": {
@@ -16,94 +25,108 @@
       "sisyphus": {
         "model": "venice/qwen-3-6-plus",
         "reasoning": "high",
-        "temperature": 0.3,
+        "temperature": 0.7,
+        "top_p": 0.8,
         "maxTokens": 32768
       },
       "prometheus": {
         "model": "venice/qwen-3-6-plus",
         "reasoning": "high",
-        "temperature": 0.25,
+        "temperature": 0.7,
+        "top_p": 0.8,
         "maxTokens": 16384
       },
       "metis": {
-        "model": "venice/aion-labs-aion-3-5",
+        "model": "venice/qwen-3-8-27b",
         "reasoning": "high",
-        "temperature": 0.25,
+        "temperature": 0.7,
+        "top_p": 0.9,
         "maxTokens": 16384
       },
       "momus": {
-        "model": "venice/aion-labs-aion-3-5",
+        "model": "venice/qwen-3-8-27b",
         "reasoning": "high",
-        "temperature": 0.2,
+        "temperature": 0.6,
+        "top_p": 0.9,
         "maxTokens": 16384
       },
       "hephaestus": {
         "model": "venice/qwen-3-6-plus",
         "reasoning": "high",
-        "temperature": 0.2,
+        "temperature": 0.4,
+        "top_p": 0.8,
         "maxTokens": 32768
       },
       "oracle": {
-        "model": "venice/aion-labs-aion-3-5",
-        "reasoning": "max",
-        "temperature": 0.2,
+        "model": "venice/qwen-3-6-plus",
+        "reasoning": "high",
+        "temperature": 0.7,
+        "top_p": 0.8,
         "maxTokens": 32768
       },
       "atlas": {
         "model": "venice/qwen-3-6-plus",
         "reasoning": "high",
-        "temperature": 0.25,
+        "temperature": 0.7,
+        "top_p": 0.8,
         "maxTokens": 16384
       },
       "sisyphus-junior": {
         "model": "venice/olafangensan-glm-4.7-flash-heretic",
         "reasoning": "low",
-        "temperature": 0.25,
+        "temperature": 0.3,
+        "top_p": 0.9,
         "maxTokens": 16384
       },
       "explore": {
         "model": "venice/olafangensan-glm-4.7-flash-heretic",
         "reasoning": "off",
-        "temperature": 0.1,
+        "temperature": 0.2,
+        "top_p": 0.9,
         "maxTokens": 8192,
         "thinking": { "type": "disabled" }
       },
       "librarian": {
         "model": "venice/olafangensan-glm-4.7-flash-heretic",
         "reasoning": "off",
-        "temperature": 0.1,
+        "temperature": 0.2,
+        "top_p": 0.9,
         "maxTokens": 8192,
         "thinking": { "type": "disabled" }
       },
       "multimodal-looker": {
         "model": "venice/qwen-3-8-27b",
         "reasoning": "low",
-        "temperature": 0.1,
+        "temperature": 0.3,
+        "top_p": 0.9,
         "maxTokens": 8192
       },
       "build": {
         "model": "venice/qwen-3-6-plus",
         "reasoning": "high",
-        "temperature": 0.1,
+        "temperature": 0.3,
+        "top_p": 0.8,
         "maxTokens": 32768
       },
       "plan": {
         "model": "venice/qwen-3-6-plus",
         "reasoning": "high",
-        "temperature": 0.2,
+        "temperature": 0.4,
+        "top_p": 0.8,
         "maxTokens": 16384
       },
       "frontend": {
         "model": "venice/qwen-3-6-plus",
         "reasoning": "high",
-        "temperature": 1.0,
+        "temperature": 0.9,
         "top_p": 0.95,
         "maxTokens": 16384
       },
       "reviewer": {
         "model": "venice/qwen-3-6-plus",
         "reasoning": "high",
-        "temperature": 0.2,
+        "temperature": 0.3,
+        "top_p": 0.8,
         "maxTokens": 16384
       }
     },
@@ -112,52 +135,59 @@
       "visual-engineering": {
         "model": "venice/qwen-3-6-plus",
         "reasoning": "high",
-        "temperature": 1.0,
+        "temperature": 0.9,
         "top_p": 0.95,
         "maxTokens": 16384
       },
       "artistry": {
         "model": "venice/venice-uncensored-1-2",
         "reasoning": "off",
-        "temperature": 0.7,
+        "temperature": 0.9,
+        "top_p": 0.95,
         "maxTokens": 16384,
         "thinking": { "type": "disabled" }
       },
       "ultrabrain": {
-        "model": "venice/aion-labs-aion-3-5",
-        "reasoning": "max",
-        "temperature": 0.25,
+        "model": "venice/qwen-3-6-plus",
+        "reasoning": "high",
+        "temperature": 0.7,
+        "top_p": 0.8,
         "maxTokens": 32768
       },
       "deep": {
         "model": "venice/qwen-3-6-plus",
         "reasoning": "high",
-        "temperature": 0.25,
+        "temperature": 0.7,
+        "top_p": 0.8,
         "maxTokens": 32768
       },
       "quick": {
         "model": "venice/olafangensan-glm-4.7-flash-heretic",
         "reasoning": "off",
-        "temperature": 0.1,
+        "temperature": 0.2,
+        "top_p": 0.9,
         "maxTokens": 4096,
         "thinking": { "type": "disabled" }
       },
       "unspecified-low": {
         "model": "venice/olafangensan-glm-4.7-flash-heretic",
         "reasoning": "low",
-        "temperature": 0.2,
+        "temperature": 0.3,
+        "top_p": 0.9,
         "maxTokens": 8192
       },
       "unspecified-high": {
         "model": "venice/qwen-3-6-plus",
         "reasoning": "high",
-        "temperature": 0.25,
+        "temperature": 0.7,
+        "top_p": 0.8,
         "maxTokens": 32768
       },
       "writing": {
         "model": "venice/venice-uncensored-1-2",
         "reasoning": "off",
-        "temperature": 0.5,
+        "temperature": 0.8,
+        "top_p": 0.95,
         "maxTokens": 8192,
         "thinking": { "type": "disabled" }
       }
@@ -167,6 +197,7 @@
       "providerConcurrency": { "venice": 5 },
       "modelConcurrency": {
         "venice/qwen-3-6-plus": 8,
+        "venice/qwen-3-8-27b": 6,
         "venice/olafangensan-glm-4.7-flash-heretic": 10
       }
     },
