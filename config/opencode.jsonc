@@ -236,6 +236,25 @@
   // Every server that wraps a CLI tool requires the underlying binary on PATH.
   // ---------------------------------------------------------------------------
   "mcp": {
+    // Venice's own MCP server: 31 tools over the full Venice API (chat,
+    // embeddings, image, video, audio, music, characters, augment/web search,
+    // models, crypto RPC, x402). Published under the veniceai org and @veniceai
+    // npm scope; the package README self-describes as community-maintained with
+    // no SLA. Enabled by default because it is the native Venice toolset.
+    "venice": {
+      "type": "local",
+      "command": ["npx", "-y", "@veniceai/mcp-server@0.2.0"],
+      "environment": {
+        "VENICE_API_KEY": "{env:VENICE_API_KEY}",
+        "VENICE_DEFAULT_CHAT_MODEL": "venice-uncensored-1-2",
+        "VENICE_DEFAULT_IMAGE_MODEL": "flux-2-pro",
+        "VENICE_DEFAULT_TTS_MODEL": "tts-kokoro",
+        "VENICE_DEFAULT_ASR_MODEL": "openai/whisper-large-v3",
+        "VENICE_HTTP_TIMEOUT_MS": "120000"
+      },
+      "enabled": true,
+      "timeout": 30000
+    },
     "shodan": {
       "type": "local",
       "command": ["npx", "-y", "@burtthecoder/mcp-shodan"],

@@ -66,6 +66,24 @@ if [ -d "$src_cache" ]; then
   printf 'hoplon: pre-seeded OMO plugin cache from host\n'
 fi
 
+# ---------------------------------------------------------------------------
+# Offline convenience: vendor the LSP binaries, the models.dev cache, and OMO's
+# ast-grep runtime from the host when present, so first use does not need network.
+# ---------------------------------------------------------------------------
+_host_home="${HOME:-}"
+_home="$HOPLON_HOME/home"
+mkdir -p "$_home/.cache/opencode" "$_home/.omo"
+if [ -d "$_host_home/.cache/opencode/bin" ]; then
+  cp -a "$_host_home/.cache/opencode/bin" "$_home/.cache/opencode/" 2>/dev/null || true
+fi
+if [ -f "$_host_home/.cache/opencode/models.json" ]; then
+  cp -f "$_host_home/.cache/opencode/models.json" "$_home/.cache/opencode/" 2>/dev/null || true
+fi
+if [ -d "$_host_home/.omo/runtime" ]; then
+  cp -a "$_host_home/.omo/runtime" "$_home/.omo/" 2>/dev/null || true
+fi
+printf 'hoplon: vendored host caches (LSP bin, models.dev, OMO runtime) when present\n'
+
 printf '\nNext steps:\n'
 printf '  1. cp .env.example .env   # then set VENICE_API_KEY\n'
 printf '  2. ./hoplon\n'

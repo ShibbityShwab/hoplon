@@ -22,6 +22,9 @@ the operator is a professional who will keep the engagement inside scope. See
   routing, background tasks, and team mode.
 - **Red-team tooling**. Six specialist subagents and five offense skills, gated
   by a mandatory rules-of-engagement skill.
+- **Venice-native tooling**. Venice's own MCP server (31 tools) and the 20
+  official Venice API skills, so the agent can call Venice beyond chat:
+  embeddings, image, video, audio, music, characters, web augment, crypto RPC.
 
 ## Layout
 
@@ -35,7 +38,7 @@ hoplon/
     tui.json             theme and TUI settings
   themes/hoplon.json     the hoplon skin
   agents/                six red-team subagents (markdown)
-  skills/                five red-team skills
+  skills/                5 red-team skills + 20 vendored Venice API skills
   scripts/install.sh     binary fetch + optional OMO cache pre-seed
   .env.example           environment template
   home/                  isolated runtime state (gitignored)
@@ -170,13 +173,20 @@ agent or category model string when a task needs them.
 
 ## MCP servers
 
-Two recon and intel servers are enabled by default. The weapon servers are
-present but disabled, and are enabled per specialist agent through each agent's
-`tools` map. Every server that wraps a CLI tool requires the underlying binary
-on `PATH`.
+The Venice server and two recon/intel servers are enabled by default. The weapon
+servers are present but disabled, and are enabled per specialist agent through
+each agent's `tools` map. Every server that wraps a CLI tool requires the
+underlying binary on `PATH`.
+
+`venice` is Venice's own MCP server: 31 tools over the full Venice API (chat,
+embeddings, image, video, audio, music, characters, augment/web search, models,
+crypto RPC, x402). It is published under the `veniceai` org and the `@veniceai`
+npm scope and documented by Venice as its MCP server, but the package README
+marks it community-maintained with no SLA.
 
 | Server | Type | Default | Requirement |
 | --- | --- | --- | --- |
+| `venice` | local | enabled | `npx`, `VENICE_API_KEY` |
 | `shodan` | local | enabled | `npx`, `SHODAN_API_KEY` |
 | `cve` | local | enabled | `uvx`, optional NVD / VirusTotal / GreyNoise keys |
 | `nmap` | local | disabled | `npx`, `mcp-nmap-server` |
@@ -207,9 +217,12 @@ launch.
 | `reverser` | Static analysis of binaries, firmware, and protocols with Ghidra |
 | `report-writer` | Turns raw findings and evidence into a client-ready report |
 
-## Red-team skills
+## Skills
 
-Skills live in `skills/` and are loaded from `{env:HOPLON_HOME}/skills`.
+Skills live in `skills/` and are loaded from `{env:HOPLON_HOME}/skills`. There
+are 25: five red-team skills and 20 vendored Venice AI API skills.
+
+Red-team skills:
 
 | Skill | Purpose |
 | --- | --- |
@@ -218,6 +231,15 @@ Skills live in `skills/` and are loaded from `{env:HOPLON_HOME}/skills`.
 | `redteam-web` | Web testing mapped to OWASP WSTG categories |
 | `redteam-exploit` | Exploitation and proof-of-concept development |
 | `redteam-report` | Client-ready reporting with CVSS and remediation |
+
+Venice skills, vendored verbatim from <https://github.com/veniceai/skills> (MIT):
+`venice-api-overview`, `venice-auth`, `venice-api-keys`, `venice-chat`,
+`venice-responses`, `venice-text-routing`, `venice-models`, `venice-embeddings`,
+`venice-characters`, `venice-image-generate`, `venice-image-edit`,
+`venice-video`, `venice-audio-speech`, `venice-audio-transcription`,
+`venice-audio-music`, `venice-augment`, `venice-billing`, `venice-x402`,
+`venice-crypto-rpc`, `venice-errors`. They give the agent the full Venice API
+surface (parameters, feature suffixes, pricing, error shapes) on demand.
 
 ## Rules of Engagement
 
@@ -252,7 +274,8 @@ first use and are not bundled:
 - **OMO plugin**. Pre-seed the cache with `scripts/install.sh` (it copies a host
   cache if present), or vendor the plugin and reference it as a path plugin.
 - **LSP servers**. Downloaded on first use.
-- **`npx` / `uvx` MCP servers**. Downloaded on first use.
+- **`npx` / `uvx` MCP servers**. Downloaded on first use, including the Venice
+  MCP server (`@veniceai/mcp-server@0.2.0`).
 - **OMO's ast-grep runtime**. Downloaded on first use.
 
 For a fully offline copy, vendor all of the above. The opencode binary itself is
