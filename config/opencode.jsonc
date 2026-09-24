@@ -34,7 +34,9 @@
   // inside each tool, so it wins for everything not explicitly listed.
   // ---------------------------------------------------------------------------
   "permission": {
-    "read": "allow",
+    // Preserve OpenCode's default guard that prompts before reading .env files
+    // (the Venice key lives there). Everything else reads without a gate.
+    "read": { "*": "allow", "*.env": "ask", "*.env.*": "ask", "*.env.example": "allow" },
     "edit": "allow",
     "glob": "allow",
     "grep": "allow",
@@ -47,26 +49,42 @@
     "lsp": "allow",
     "doom_loop": "allow",
     "external_directory": "allow",
+    // Patterns match each parsed sub-command, so "a && rm -rf /" still matches
+    // the "rm -rf /" node, and the last matching rule wins (specifics sit after
+    // the "*" catch-all). Prefixes are broad because a literal "rm -rf *" misses
+    // "rm -fr /", "rm --force -r", "sudo rm", whitespace variants, and wrappers.
     "bash": {
       "*": "allow",
-      "rm -rf *": "ask",
+      "rm*": "ask",
       "rm -rf /": "deny",
-      "dd *": "ask",
+      "dd*": "ask",
       "*shred*": "ask",
-      "mkfs.*": "ask",
-      "*:(){ :|:& };:*": "ask",
-      "git push --force*": "ask"
+      "*mkfs*": "ask",
+      "*mkswap*": "ask",
+      "*wipefs*": "ask",
+      "*fdisk*": "ask",
+      "*parted*": "ask",
+      "*chmod *-R*": "ask",
+      "*chown *-R*": "ask",
+      "*sudo *": "ask",
+      "*:(){*": "ask",
+      "git push*--force*": "ask",
+      "git push*-f*": "ask"
     }
   },
 
   // ---------------------------------------------------------------------------
-  // Provider: Venice AI via the OpenAI-compatible adapter.
-  // Only the models Hoplon actually routes to are declared, with context and
-  // output limits so OpenCode can track the window correctly.
+  // Provider: Venice AI through OpenCode's built-in venice provider.
+  //
+  // Do NOT set "npm" here. OpenCode ships a native venice provider backed by the
+  // venice-ai-sdk-provider package, which lowers provider options into Venice's
+  // venice_parameters (snake_case), wires reasoning, and sends the correct
+  // request body. Forcing "@ai-sdk/openai-compatible" bypasses that plugin and
+  // emits a camelCase veniceParameters object the API ignores. Only the models
+  // Hoplon routes to are declared, with context and output limits.
   // ---------------------------------------------------------------------------
   "provider": {
     "venice": {
-      "npm": "@ai-sdk/openai-compatible",
       "name": "Venice AI",
       "options": {
         "baseURL": "https://api.venice.ai/api/v1",
@@ -94,14 +112,14 @@
         // Cheap uncensored reasoner with tools, 200K ctx.
         "olafangensan-glm-4.7-flash-heretic": {
           "name": "GLM 4.7 Flash Heretic (Uncensored)",
-          "limit": { "context": 200000, "output": 32768 },
+          "limit": { "context": 200000, "output": 24000 },
           "tool_call": true,
           "reasoning": true
         },
         // The most-uncensored Venice model: chat, vision, tools, 128K ctx.
         "venice-uncensored-1-2": {
           "name": "Venice Uncensored 1.2",
-          "limit": { "context": 131072, "output": 16384 },
+          "limit": { "context": 128000, "output": 8192 },
           "tool_call": true,
           "attachment": true
         },
@@ -116,25 +134,13 @@
         // Uncensored vision chat, 256K ctx.
         "gemma-4-uncensored": {
           "name": "Gemma 4 Uncensored",
-          "limit": { "context": 262144, "output": 32768 },
+          "limit": { "context": 256000, "output": 8192 },
           "tool_call": true,
           "attachment": true
         },
-        // Strong agentic coder, 1M ctx.
-        "z-ai-glm-5-3-flash": {
-          "name": "GLM 5.3 Flash",
-          "limit": { "context": 1000000, "output": 131072 },
-          "tool_call": true,
-          "reasoning": true,
-          "attachment": true
-        },
-        // Default-code model, 1M ctx.
-        "deepseek-v4-pro-0813": {
-          "name": "DeepSeek V4 Pro (0813)",
-          "limit": { "context": 1000000, "output": 32768 },
-          "tool_call": true,
-          "reasoning": true
-        }
+        // Non-uncensored models (glm-5-3-flash, deepseek-v4-pro) are omitted on
+        // purpose: Venice does not tag them uncensored, so upstream hosts can
+        // still filter them. Only the uncensored set is declared.
       }
     }
   },

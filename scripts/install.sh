@@ -8,6 +8,7 @@
 # Overridable via environment:
 #   HOPLON_OPENCODE_VERSION   default 1.18.25 (the version this repo is tested on)
 #   HOPLON_OPENCODE_REPO      default anomalyco/opencode
+#   HOPLON_OPENCODE_SHA256    optional archive digest; verified with sha256sum
 # =============================================================================
 set -euo pipefail
 
@@ -40,17 +41,30 @@ if ! curl -fsSL "$url" -o "$tmp/$asset"; then
   exit 1
 fi
 
+# Optional integrity check. Pin the digest in .env or the environment to make
+# a tampered or partial download fail closed.
+if [ -n "${HOPLON_OPENCODE_SHA256:-}" ]; then
+  printf '%s  %s\n' "$HOPLON_OPENCODE_SHA256" "$tmp/$asset" | sha256sum -c - >/dev/null 2>&1 || {
+    printf 'hoplon: checksum mismatch for %s\n' "$asset" >&2
+    exit 1
+  }
+  printf 'hoplon: checksum verified\n'
+fi
+
 case "$asset" in
-  *.tar.gz) tar -xzf "$tmp/$asset" -C "$tmp" ;;
-  *.zip)    unzip -q  "$tmp/$asset" -d "$tmp" ;;
+  *.tar.gz) tar --no-same-owner --no-same-permissions -xzf "$tmp/$asset" -C "$tmp" ;;
+  *.zip)    unzip -q "$tmp/$asset" -d "$tmp" ;;
 esac
 
-bin="$(find "$tmp" -type f -name opencode | head -1)"
+bin="$(find "$tmp" -type f -name opencode -print -quit)"
 if [ -z "$bin" ]; then
   printf 'hoplon: could not find the opencode binary in the archive\n' >&2
   exit 1
 fi
-install -m 0755 "$bin" "$HOPLON_HOME/bin/opencode"
+# Install by rename so an interrupted download or extract never leaves a
+# truncated binary where the launcher would treat it as valid.
+install -m 0755 "$bin" "$HOPLON_HOME/bin/.opencode.new.$$"
+mv -f "$HOPLON_HOME/bin/.opencode.new.$$" "$HOPLON_HOME/bin/opencode"
 printf 'hoplon: installed %s\n' "$HOPLON_HOME/bin/opencode"
 "$HOPLON_HOME/bin/opencode" --version || true
 

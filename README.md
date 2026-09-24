@@ -25,8 +25,9 @@ the operator is a professional who will keep the engagement inside scope. See
 - **Venice-native tooling**. Venice's own MCP server (31 tools) and the 20
   official Venice API skills, so the agent can call Venice beyond chat:
   embeddings, image, video, audio, music, characters, web augment, crypto RPC.
-- **Hoplon identity**. A custom bronze-and-iron `hoplon` theme plus a TUI plugin
-  that replaces the stock OpenCode logo with the HOPLON home banner.
+- **Hoplon identity**. A solid bronze-on-iron `hoplon` theme (with a transparent
+  `hoplon-ghost` variant) plus a TUI plugin that replaces the stock OpenCode logo
+  with the HOPLON home banner.
 
 ## Layout
 
@@ -152,13 +153,16 @@ The declared models, with their context and output limits, are:
 | Model ID | Context | Output | Notes |
 | --- | --- | --- | --- |
 | `qwen-3-6-plus` | 1,000,000 | 65,536 | Uncensored flagship: code, reasoning, vision, tools |
+| `qwen-3-8-27b` | 262,144 | 65,536 | Uncensored: tuning-capable reasoning effort + vision |
 | `aion-labs-aion-3-5` | 262,144 | 32,768 | Uncensored deep reasoning |
-| `olafangensan-glm-4.7-flash-heretic` | 200,000 | 32,768 | Cheap uncensored reasoner with tools |
-| `venice-uncensored-1-2` | 131,072 | 16,384 | Most-uncensored Venice model: chat, vision, tools |
-| `qwen-3-8-27b` | 262,144 | 65,536 | Uncensored vision |
-| `gemma-4-uncensored` | 262,144 | 32,768 | Uncensored vision chat |
-| `z-ai-glm-5-3-flash` | 1,000,000 | 131,072 | Strong agentic coder |
-| `deepseek-v4-pro-0813` | 1,000,000 | 32,768 | Default-code model |
+| `olafangensan-glm-4.7-flash-heretic` | 200,000 | 24,000 | Cheap uncensored reasoner with tools |
+| `venice-uncensored-1-2` | 131,072 | 8,192 | Most-uncensored Venice model: chat, vision, tools |
+| `gemma-4-uncensored` | 262,144 | 8,192 | Uncensored vision chat |
+
+Only the uncensored set is declared. Non-uncensored Venice models
+(`z-ai-glm-5-3-flash`, `deepseek-v4-pro-0813`, and the Grok/GPT/Gemini/Claude
+families) are omitted because Venice documents that upstream hosts may still
+apply their own filtering.
 
 Routing is tuned for uncensored use. Every route is one of Venice's eleven
 `uncensored` models; the rest of the catalog is avoided because upstream hosts
@@ -272,6 +276,27 @@ you send packets to, authenticate against, or modify a target, it does. The
 scope is the contract. When the ROE and a convenient shortcut disagree, the ROE
 wins.
 
+## Hardening
+
+- **Provider.** Venice runs through OpenCode's built-in venice provider, not a
+  generic adapter. Do not add `"npm"` to `provider.venice`: the override bypasses
+  the `venice_parameters` lowering and sends a camelCase object the API ignores.
+- **Permissions.** Read is `allow` except for `.env` files, which prompt, so the
+  Venice key is not one command away. The bash guards cover `rm`, `dd`, disk
+  tools, recursive chown/chmod, `sudo`, fork bombs, and forced pushes, but no glob
+  set stops every destructive command: wrappers (`sudo rm`, `bash -c '...'`) and
+  unusual flag orders can slip through. Treat YOLO mode as host-level authority
+  and run engagements on a disposable box.
+- **Prompt injection.** With web fetch and search allowed, untrusted content can
+  reach the model. Keep the API key scoped and prefer a proxy or container when
+  working against hostile targets.
+- **Install.** `scripts/install.sh` installs by rename, so a killed download
+  never leaves a truncated binary, and verifies the archive when
+  `HOPLON_OPENCODE_SHA256` is set.
+- **Launcher.** The OMO takeover backs up at mode 600, writes atomically, and
+  restores on `EXIT`, `INT`, `TERM`, and `HUP`. A `SIGKILL` can still leave the
+  host file swapped; the next run from the same tree self-heals from the backup.
+
 ## Legal notice
 
 Use Hoplon only against systems you own or have explicit written authorization
@@ -299,13 +324,17 @@ rather than committed.
 
 ## Verified
 
-- **Routing.** OMO resolves every agent to a Venice uncensored model. The
-  launcher keeps that routing when a host OMO config sits above the working
-  directory, and restores the host config on exit (backed up, swapped for the
-  session, put back on quit or interrupt).
-- **Branding.** The TUI loads `theme: hoplon` and the `hoplon-brand` TUI plugin,
-  which replaces the stock OpenCode logo with the HOPLON banner (`offensive
-  security console`). Confirmed from a captured TUI run.
+- **Provider.** `opencode models venice` resolves through the built-in venice
+  provider (no `npm` override), so `venice_parameters` and reasoning lower
+  correctly, and declared limits match the live `/models` response.
+- **Routing.** OMO resolves every agent to a Venice uncensored model, with
+  reasoning effort only on models that advertise it. The launcher keeps that
+  routing when a host OMO config sits above the working directory, and restores
+  the host config on exit (backed up, swapped, put back on quit or interrupt).
+- **Branding.** The TUI loads `theme: hoplon` (solid iron background) and the
+  `hoplon-brand` TUI plugin, which replaces the stock OpenCode logo with the
+  HOPLON banner (`offensive security console`). Confirmed from a captured TUI
+  run: wordmark present, default logo gone, iron background painted.
 - **Boot.** A keyless boot is clean: the Venice MCP server starts, and shodan and
   cve stay disabled so they do not log failures.
 - **Config.** `opencode.jsonc` and `omo.jsonc` parse, `bash -n` passes on the

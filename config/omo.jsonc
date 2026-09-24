@@ -38,14 +38,14 @@
       },
       "metis": {
         "model": "venice/qwen-3-8-27b",
-        "reasoning": "high",
+        "reasoning": "xhigh",
         "temperature": 0.7,
         "top_p": 0.9,
         "maxTokens": 16384
       },
       "momus": {
         "model": "venice/qwen-3-8-27b",
-        "reasoning": "high",
+        "reasoning": "xhigh",
         "temperature": 0.6,
         "top_p": 0.9,
         "maxTokens": 16384

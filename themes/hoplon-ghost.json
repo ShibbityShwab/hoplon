@@ -1,0 +1,239 @@
+{
+  "$schema": "https://opencode.ai/theme.json",
+  "defs": {
+    "iron": "#15120e",
+    "ironRaised": "#201b15",
+    "ironEdge": "#3a3128",
+    "ironHairline": "#262019",
+    "ironHigh": "#2b241b",
+    "bronze": "#c9973f",
+    "bronzeBright": "#e3b25c",
+    "bronzeDim": "#9c7a38",
+    "bronzeDeep": "#6f5215",
+    "bronzePale": "#f0d8a8",
+    "bone": "#e6ded0",
+    "ash": "#9a9080",
+    "ashDim": "#8b8172",
+    "crimson": "#d85a45",
+    "crimsonBright": "#e87a63",
+    "ochre": "#d9a441",
+    "patina": "#7fae7a",
+    "patinaBright": "#9ac48f",
+    "steel": "#8aa3b8",
+    "parchment": "#efe9dc",
+    "parchmentRaised": "#e4ddcb",
+    "parchmentEdge": "#c9bda3",
+    "parchmentHairline": "#ddd5c1",
+    "ink": "#241f18",
+    "inkMuted": "#6b6152",
+    "inkFaint": "#6f6555",
+    "bronzeInk": "#7d5a1c",
+    "crimsonInk": "#a13324",
+    "patinaInk": "#3f6b3a",
+    "steelInk": "#3e5f7a",
+    "ochreInk": "#8a5f12",
+    "emberInk": "#a0521a"
+  },
+  "theme": {
+    "primary": {
+      "dark": "bronze",
+      "light": "bronzeInk"
+    },
+    "secondary": {
+      "dark": "patina",
+      "light": "patinaInk"
+    },
+    "accent": {
+      "dark": "bronzeBright",
+      "light": "ochreInk"
+    },
+    "error": {
+      "dark": "crimson",
+      "light": "crimsonInk"
+    },
+    "warning": {
+      "dark": "ochre",
+      "light": "emberInk"
+    },
+    "success": {
+      "dark": "patina",
+      "light": "patinaInk"
+    },
+    "info": {
+      "dark": "steel",
+      "light": "steelInk"
+    },
+    "text": {
+      "dark": "bone",
+      "light": "ink"
+    },
+    "textMuted": {
+      "dark": "ash",
+      "light": "inkMuted"
+    },
+    "background": {
+      "dark": "none",
+      "light": "none"
+    },
+    "backgroundPanel": {
+      "dark": "iron",
+      "light": "parchment"
+    },
+    "backgroundElement": {
+      "dark": "ironRaised",
+      "light": "parchmentRaised"
+    },
+    "border": {
+      "dark": "ironEdge",
+      "light": "parchmentEdge"
+    },
+    "borderActive": {
+      "dark": "bronze",
+      "light": "bronzeInk"
+    },
+    "borderSubtle": {
+      "dark": "ironHairline",
+      "light": "parchmentHairline"
+    },
+    "diffAdded": {
+      "dark": "patina",
+      "light": "patinaInk"
+    },
+    "diffRemoved": {
+      "dark": "crimson",
+      "light": "crimsonInk"
+    },
+    "diffContext": {
+      "dark": "ashDim",
+      "light": "inkFaint"
+    },
+    "diffHunkHeader": {
+      "dark": "steel",
+      "light": "steelInk"
+    },
+    "diffHighlightAdded": {
+      "dark": "patinaBright",
+      "light": "patinaInk"
+    },
+    "diffHighlightRemoved": {
+      "dark": "crimsonBright",
+      "light": "crimsonInk"
+    },
+    "diffAddedBg": {
+      "dark": "#152a1c",
+      "light": "#dcead6"
+    },
+    "diffRemovedBg": {
+      "dark": "#2c1613",
+      "light": "#f1dbd4"
+    },
+    "diffContextBg": {
+      "dark": "ironRaised",
+      "light": "parchmentRaised"
+    },
+    "diffLineNumber": {
+      "dark": "ashDim",
+      "light": "inkFaint"
+    },
+    "diffAddedLineNumberBg": {
+      "dark": "#1b3522",
+      "light": "#cfe3c8"
+    },
+    "diffRemovedLineNumberBg": {
+      "dark": "#381b17",
+      "light": "#e9cec6"
+    },
+    "markdownText": {
+      "dark": "bone",
+      "light": "ink"
+    },
+    "markdownHeading": {
+      "dark": "bronzeBright",
+      "light": "bronzeInk"
+    },
+    "markdownLink": {
+      "dark": "steel",
+      "light": "steelInk"
+    },
+    "markdownLinkText": {
+      "dark": "patinaBright",
+      "light": "patinaInk"
+    },
+    "markdownCode": {
+      "dark": "patina",
+      "light": "patinaInk"
+    },
+    "markdownBlockQuote": {
+      "dark": "ash",
+      "light": "inkMuted"
+    },
+    "markdownEmph": {
+      "dark": "ochre",
+      "light": "ochreInk"
+    },
+    "markdownStrong": {
+      "dark": "bronzePale",
+      "light": "bronzeInk"
+    },
+    "markdownHorizontalRule": {
+      "dark": "bronzeDim",
+      "light": "inkMuted"
+    },
+    "markdownListItem": {
+      "dark": "bronze",
+      "light": "bronzeInk"
+    },
+    "markdownListEnumeration": {
+      "dark": "bronzeBright",
+      "light": "ochreInk"
+    },
+    "markdownImage": {
+      "dark": "steel",
+      "light": "steelInk"
+    },
+    "markdownImageText": {
+      "dark": "patina",
+      "light": "patinaInk"
+    },
+    "markdownCodeBlock": {
+      "dark": "bone",
+      "light": "ink"
+    },
+    "syntaxComment": {
+      "dark": "ashDim",
+      "light": "inkFaint"
+    },
+    "syntaxKeyword": {
+      "dark": "crimson",
+      "light": "crimsonInk"
+    },
+    "syntaxFunction": {
+      "dark": "bronze",
+      "light": "bronzeInk"
+    },
+    "syntaxVariable": {
+      "dark": "bone",
+      "light": "ink"
+    },
+    "syntaxString": {
+      "dark": "patina",
+      "light": "patinaInk"
+    },
+    "syntaxNumber": {
+      "dark": "ochre",
+      "light": "ochreInk"
+    },
+    "syntaxType": {
+      "dark": "steel",
+      "light": "steelInk"
+    },
+    "syntaxOperator": {
+      "dark": "bronzeDim",
+      "light": "bronzeDeep"
+    },
+    "syntaxPunctuation": {
+      "dark": "ash",
+      "light": "inkMuted"
+    }
+  }
+}
