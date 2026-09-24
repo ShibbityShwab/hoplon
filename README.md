@@ -156,8 +156,8 @@ The declared models, with their context and output limits, are:
 | `qwen-3-8-27b` | 262,144 | 65,536 | Uncensored: tuning-capable reasoning effort + vision |
 | `aion-labs-aion-3-5` | 262,144 | 32,768 | Uncensored deep reasoning |
 | `olafangensan-glm-4.7-flash-heretic` | 200,000 | 24,000 | Cheap uncensored reasoner with tools |
-| `venice-uncensored-1-2` | 131,072 | 8,192 | Most-uncensored Venice model: chat, vision, tools |
-| `gemma-4-uncensored` | 262,144 | 8,192 | Uncensored vision chat |
+| `venice-uncensored-1-2` | 128,000 | 8,192 | Most-uncensored Venice model: chat, vision, tools |
+| `gemma-4-uncensored` | 256,000 | 8,192 | Uncensored vision chat |
 
 Only the uncensored set is declared. Non-uncensored Venice models
 (`z-ai-glm-5-3-flash`, `deepseek-v4-pro-0813`, and the Grok/GPT/Gemini/Claude
@@ -172,20 +172,15 @@ does not. Reasoning effort is only assigned to models that advertise
 and sampling follows Venice's published per-model constraints where they exist
 (`qwen-3-6-plus`: temperature 0.7, top_p 0.8). Venice's own system prompt stays
 enabled because it is what instructs the models to answer directly and skip
-refusals and disclaimers; it can be disabled per model with the
-`:include_venice_system_prompt=false` suffix when it fights a tool instruction.
+refusals and disclaimers.
 
-### Venice-only features
-
-The OpenAI-compatible adapter passes the model string through verbatim, so
-Venice-only features can be enabled with model-ID suffixes. For example:
-
-```
-venice/venice-uncensored-1-2:enable_web_search=on
-```
-
-The same mechanism carries Venice's prompt-control suffixes. Set these on the
-agent or category model string when a task needs them.
+Effort settings on models that do not advertise an effort control (for example
+`qwen-3-6-plus`) are dropped by the harness rather than sent, so they are inert.
+Venice's feature suffixes (`:enable_web_search=on`,
+`:include_venice_system_prompt=false`) do not resolve through the built-in
+venice provider: a suffixed model id fails with "Provider not found". Enabling
+them would mean switching back to the OpenAI-compatible adapter, which is what
+breaks `venice_parameters`, so they are deliberately not used.
 
 ## MCP servers
 
@@ -281,12 +276,12 @@ wins.
 - **Provider.** Venice runs through OpenCode's built-in venice provider, not a
   generic adapter. Do not add `"npm"` to `provider.venice`: the override bypasses
   the `venice_parameters` lowering and sends a camelCase object the API ignores.
-- **Permissions.** Read is `allow` except for `.env` files, which prompt, so the
-  Venice key is not one command away. The bash guards cover `rm`, `dd`, disk
-  tools, recursive chown/chmod, `sudo`, fork bombs, and forced pushes, but no glob
-  set stops every destructive command: wrappers (`sudo rm`, `bash -c '...'`) and
-  unusual flag orders can slip through. Treat YOLO mode as host-level authority
-  and run engagements on a disposable box.
+- **Permissions.** Read prompts for `.env`, but bash is allowed, so the agent can
+  still reach the key with `cat .env`; treat the key as exposed to the model. The
+  bash guards cover `rm`, `dd`, disk tools, recursive chown/chmod, `sudo`, fork
+  bombs, and forced pushes, but no glob set stops every destructive command:
+  wrappers (`sudo rm`, `bash -c '...'`) and unusual flag orders can slip through.
+  Treat YOLO mode as host-level authority and run engagements on a disposable box.
 - **Prompt injection.** With web fetch and search allowed, untrusted content can
   reach the model. Keep the API key scoped and prefer a proxy or container when
   working against hostile targets.

@@ -11,8 +11,9 @@
 // content filtering on; upstream hosts (Anthropic, OpenAI, Google, xAI) may
 // still filter, so they are avoided here. Sampling follows Venice's published
 // per-model constraints where they exist (qwen-3-6-plus: temperature 0.7,
-// top_p 0.8). Reasoning effort is only given to models that advertise
-// supportsReasoningEffort (qwen-3-8-27b, olafangensan-glm-4.7-flash-heretic).
+// top_p 0.8). Reasoning effort is applied only where a model advertises an
+// effort control (qwen-3-8-27b, olafangensan-glm-4.7-flash-heretic); settings
+// on models without one (qwen-3-6-plus) are dropped by the harness, not sent.
 //
 //   qwen-3-6-plus                     uncensored flagship: code + reasoning + vision + tools, 1M ctx
 //   qwen-3-8-27b                      uncensored: tunable effort (up to xhigh) + vision, 262K ctx

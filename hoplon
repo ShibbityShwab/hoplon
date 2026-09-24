@@ -153,12 +153,16 @@ fi
 # ---------------------------------------------------------------------------
 HOPLON_OMO_RESTORE=""
 HOPLON_OMO_BAK=""
+HOPLON_OMO_MODE=""
 _hoplon_marker="HOPLON - Oh My OpenAgent"
 
 _hoplon_restore_omo() {
   if [ -n "$HOPLON_OMO_RESTORE" ] && [ -f "$HOPLON_OMO_BAK" ]; then
     cp -f "$HOPLON_OMO_BAK" "$HOPLON_OMO_RESTORE.hoplon-restore.$$" 2>/dev/null &&
       mv -f "$HOPLON_OMO_RESTORE.hoplon-restore.$$" "$HOPLON_OMO_RESTORE" 2>/dev/null || true
+    # cp creates the restored file with the backup's mode, so re-apply the
+    # original file mode captured at takeover time.
+    [ -n "${HOPLON_OMO_MODE:-}" ] && chmod "$HOPLON_OMO_MODE" "$HOPLON_OMO_RESTORE" 2>/dev/null || true
   fi
 }
 trap _hoplon_restore_omo EXIT INT TERM HUP
@@ -184,6 +188,7 @@ if [ "${HOPLON_OMO_TAKEOVER:-1}" != "0" ]; then
     if [ -f "$_bak" ] && grep -q "$_hoplon_marker" "$_conflict" 2>/dev/null; then
       cp -f "$_bak" "$_conflict" 2>/dev/null || true
     fi
+    HOPLON_OMO_MODE="$(stat -c '%a' "$_conflict" 2>/dev/null || true)"
     if [ ! -f "$_bak" ]; then
       cp -f "$_conflict" "$_bak" 2>/dev/null || true
       chmod 600 "$_bak" 2>/dev/null || true

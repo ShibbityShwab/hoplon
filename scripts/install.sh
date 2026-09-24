@@ -13,6 +13,15 @@
 set -euo pipefail
 
 HOPLON_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd -P)"
+
+# Pull optional settings (version, digest) from .env when present, so a pinned
+# HOPLON_OPENCODE_SHA256 in .env actually takes effect.
+if [ -f "$HOPLON_HOME/.env" ]; then
+  set -a
+  . "$HOPLON_HOME/.env"
+  set +a
+fi
+
 VERSION="${HOPLON_OPENCODE_VERSION:-1.18.25}"
 REPO="${HOPLON_OPENCODE_REPO:-anomalyco/opencode}"
 OMO_SPEC="oh-my-openagent@5.0.0-beta.62"
