@@ -1,0 +1,195 @@
+// =============================================================================
+// HOPLON - Oh My OpenAgent (OMO) runtime config.
+//
+// OMO reads the user layer at $HOME/.omo/omo.jsonc plus a project
+// .omo/omo.jsonc walked upward from the working directory. The Hoplon launcher
+// isolates $HOME into this repo and symlinks $HOME/.omo/omo.jsonc to this file,
+// so the routing below always applies without touching the host's real config.
+//
+// Everything here is routed to Venice AI. Reasoning tiers differ by effort
+// (off / low / high / max) rather than by model; the model is chosen per agent
+// from Venice's uncensored family, falling back to the strongest agentic coder.
+// =============================================================================
+{
+  "[opencode]": {
+    "agents": {
+      "sisyphus": {
+        "model": "venice/qwen-3-6-plus",
+        "reasoning": "high",
+        "temperature": 0.3,
+        "maxTokens": 32768
+      },
+      "prometheus": {
+        "model": "venice/qwen-3-6-plus",
+        "reasoning": "high",
+        "temperature": 0.25,
+        "maxTokens": 16384
+      },
+      "metis": {
+        "model": "venice/aion-labs-aion-3-5",
+        "reasoning": "high",
+        "temperature": 0.25,
+        "maxTokens": 16384
+      },
+      "momus": {
+        "model": "venice/aion-labs-aion-3-5",
+        "reasoning": "high",
+        "temperature": 0.2,
+        "maxTokens": 16384
+      },
+      "hephaestus": {
+        "model": "venice/qwen-3-6-plus",
+        "reasoning": "high",
+        "temperature": 0.2,
+        "maxTokens": 32768
+      },
+      "oracle": {
+        "model": "venice/aion-labs-aion-3-5",
+        "reasoning": "max",
+        "temperature": 0.2,
+        "maxTokens": 32768
+      },
+      "atlas": {
+        "model": "venice/qwen-3-6-plus",
+        "reasoning": "high",
+        "temperature": 0.25,
+        "maxTokens": 16384
+      },
+      "sisyphus-junior": {
+        "model": "venice/olafangensan-glm-4.7-flash-heretic",
+        "reasoning": "low",
+        "temperature": 0.25,
+        "maxTokens": 16384
+      },
+      "explore": {
+        "model": "venice/olafangensan-glm-4.7-flash-heretic",
+        "reasoning": "off",
+        "temperature": 0.1,
+        "maxTokens": 8192,
+        "thinking": { "type": "disabled" }
+      },
+      "librarian": {
+        "model": "venice/olafangensan-glm-4.7-flash-heretic",
+        "reasoning": "off",
+        "temperature": 0.1,
+        "maxTokens": 8192,
+        "thinking": { "type": "disabled" }
+      },
+      "multimodal-looker": {
+        "model": "venice/qwen-3-8-27b",
+        "reasoning": "low",
+        "temperature": 0.1,
+        "maxTokens": 8192
+      },
+      "build": {
+        "model": "venice/qwen-3-6-plus",
+        "reasoning": "high",
+        "temperature": 0.1,
+        "maxTokens": 32768
+      },
+      "plan": {
+        "model": "venice/qwen-3-6-plus",
+        "reasoning": "high",
+        "temperature": 0.2,
+        "maxTokens": 16384
+      },
+      "frontend": {
+        "model": "venice/qwen-3-6-plus",
+        "reasoning": "high",
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "maxTokens": 16384
+      },
+      "reviewer": {
+        "model": "venice/qwen-3-6-plus",
+        "reasoning": "high",
+        "temperature": 0.2,
+        "maxTokens": 16384
+      }
+    },
+
+    "categories": {
+      "visual-engineering": {
+        "model": "venice/qwen-3-6-plus",
+        "reasoning": "high",
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "maxTokens": 16384
+      },
+      "artistry": {
+        "model": "venice/venice-uncensored-1-2",
+        "reasoning": "off",
+        "temperature": 0.7,
+        "maxTokens": 16384,
+        "thinking": { "type": "disabled" }
+      },
+      "ultrabrain": {
+        "model": "venice/aion-labs-aion-3-5",
+        "reasoning": "max",
+        "temperature": 0.25,
+        "maxTokens": 32768
+      },
+      "deep": {
+        "model": "venice/qwen-3-6-plus",
+        "reasoning": "high",
+        "temperature": 0.25,
+        "maxTokens": 32768
+      },
+      "quick": {
+        "model": "venice/olafangensan-glm-4.7-flash-heretic",
+        "reasoning": "off",
+        "temperature": 0.1,
+        "maxTokens": 4096,
+        "thinking": { "type": "disabled" }
+      },
+      "unspecified-low": {
+        "model": "venice/olafangensan-glm-4.7-flash-heretic",
+        "reasoning": "low",
+        "temperature": 0.2,
+        "maxTokens": 8192
+      },
+      "unspecified-high": {
+        "model": "venice/qwen-3-6-plus",
+        "reasoning": "high",
+        "temperature": 0.25,
+        "maxTokens": 32768
+      },
+      "writing": {
+        "model": "venice/venice-uncensored-1-2",
+        "reasoning": "off",
+        "temperature": 0.5,
+        "maxTokens": 8192,
+        "thinking": { "type": "disabled" }
+      }
+    },
+
+    "background_task": {
+      "providerConcurrency": { "venice": 5 },
+      "modelConcurrency": {
+        "venice/qwen-3-6-plus": 8,
+        "venice/olafangensan-glm-4.7-flash-heretic": 10
+      }
+    },
+
+    "disabled_hooks": [
+      "context-window-monitor",
+      "preemptive-compaction",
+      "anthropic-context-window-limit-recovery"
+    ],
+
+    "team_mode": {
+      "enabled": true,
+      "max_parallel_members": 4,
+      "tmux_visualization": true
+    }
+  },
+
+  // Anonymous telemetry off for a portable, opsec-conscious distribution.
+  "telemetry": false,
+
+  "_migrations": [
+    "2026-08-reasoning-unification",
+    "2026-07-opencode-config-unification"
+  ],
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/omo.schema.json"
+}

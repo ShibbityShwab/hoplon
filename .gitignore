@@ -1,0 +1,22 @@
+# Secrets
+.env
+
+# Bundled binary (fetched by scripts/install.sh)
+/bin/opencode
+/bin/*.zip
+/bin/*.tar.gz
+
+# Isolated HOME and all runtime state
+/home/
+
+# opencode may create these inside config dirs at runtime
+node_modules/
+package.json
+package-lock.json
+bun.lock
+
+# Local runtime junk
+*.log
+*.tmp
+.DS_Store
+__pycache__/

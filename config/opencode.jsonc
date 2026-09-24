@@ -1,0 +1,388 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // ===========================================================================
+  // HOPLON - portable, uncensored, red-team-focused OpenCode on Venice AI.
+  //
+  // Every model here is served by Venice AI (https://venice.ai), an
+  // OpenAI-compatible, privacy-first inference provider with no platform-level
+  // content filtering. The roster deliberately favours Venice's "uncensored"
+  // model family for security work, falling back to the strongest agentic
+  // models for pure coding.
+  //
+  // Model references are always `venice/<model-id>`. Reasoning effort per
+  // agent/category is tuned in config/omo.jsonc (the Oh My OpenAgent layer).
+  // The API key is read from the local .env via {env:VENICE_API_KEY}.
+  //
+  // The launcher (./hoplon) exports HOPLON_HOME so the {env:HOPLON_HOME} paths
+  // below resolve to this repository no matter where it is copied.
+  // ===========================================================================
+  "model": "venice/qwen-3-6-plus",
+  "small_model": "venice/olafangensan-glm-4.7-flash-heretic",
+  "default_agent": "sisyphus",
+  "username": "operator",
+  "shell": "/bin/bash",
+  "enabled_providers": ["venice"],
+
+  // ---------------------------------------------------------------------------
+  // Plugins: the Oh My OpenAgent harness. Keep exactly ONE omo entry.
+  // ---------------------------------------------------------------------------
+  "plugin": ["oh-my-openagent@5.0.0-beta.62"],
+
+  // ---------------------------------------------------------------------------
+  // Permissions: YOLO for red-team speed, with explicit guards on the handful
+  // of genuinely destructive commands. The "*" catch-all is evaluated last
+  // inside each tool, so it wins for everything not explicitly listed.
+  // ---------------------------------------------------------------------------
+  "permission": {
+    "read": "allow",
+    "edit": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "task": "allow",
+    "todowrite": "allow",
+    "question": "allow",
+    "webfetch": "allow",
+    "websearch": "allow",
+    "lsp": "allow",
+    "doom_loop": "allow",
+    "external_directory": "allow",
+    "bash": {
+      "*": "allow",
+      "rm -rf *": "ask",
+      "rm -rf /": "deny",
+      "dd *": "ask",
+      "*shred*": "ask",
+      "mkfs.*": "ask",
+      "*:(){ :|:& };:*": "ask",
+      "git push --force*": "ask"
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // Provider: Venice AI via the OpenAI-compatible adapter.
+  // Only the models Hoplon actually routes to are declared, with context and
+  // output limits so OpenCode can track the window correctly.
+  // ---------------------------------------------------------------------------
+  "provider": {
+    "venice": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Venice AI",
+      "options": {
+        "baseURL": "https://api.venice.ai/api/v1",
+        "apiKey": "{env:VENICE_API_KEY}",
+        "timeout": 600000,
+        "headerTimeout": 60000,
+        "chunkTimeout": 60000
+      },
+      "models": {
+        // Uncensored flagship: code + reasoning + vision + tools, 1M ctx.
+        "qwen-3-6-plus": {
+          "name": "Qwen 3.6 Plus Uncensored",
+          "limit": { "context": 1000000, "output": 65536 },
+          "tool_call": true,
+          "reasoning": true,
+          "attachment": true
+        },
+        // Uncensored deep reasoning, 262K ctx.
+        "aion-labs-aion-3-5": {
+          "name": "Aion 3.5 (Uncensored)",
+          "limit": { "context": 262144, "output": 32768 },
+          "tool_call": true,
+          "reasoning": true
+        },
+        // Cheap uncensored reasoner with tools, 200K ctx.
+        "olafangensan-glm-4.7-flash-heretic": {
+          "name": "GLM 4.7 Flash Heretic (Uncensored)",
+          "limit": { "context": 200000, "output": 32768 },
+          "tool_call": true,
+          "reasoning": true
+        },
+        // The most-uncensored Venice model: chat, vision, tools, 128K ctx.
+        "venice-uncensored-1-2": {
+          "name": "Venice Uncensored 1.2",
+          "limit": { "context": 131072, "output": 16384 },
+          "tool_call": true,
+          "attachment": true
+        },
+        // Uncensored vision, 262K ctx.
+        "qwen-3-8-27b": {
+          "name": "Qwen 3.8 27B (Uncensored, Vision)",
+          "limit": { "context": 262144, "output": 65536 },
+          "tool_call": true,
+          "reasoning": true,
+          "attachment": true
+        },
+        // Uncensored vision chat, 256K ctx.
+        "gemma-4-uncensored": {
+          "name": "Gemma 4 Uncensored",
+          "limit": { "context": 262144, "output": 32768 },
+          "tool_call": true,
+          "attachment": true
+        },
+        // Strong agentic coder, 1M ctx.
+        "z-ai-glm-5-3-flash": {
+          "name": "GLM 5.3 Flash",
+          "limit": { "context": 1000000, "output": 131072 },
+          "tool_call": true,
+          "reasoning": true,
+          "attachment": true
+        },
+        // Default-code model, 1M ctx.
+        "deepseek-v4-pro-0813": {
+          "name": "DeepSeek V4 Pro (0813)",
+          "limit": { "context": 1000000, "output": 32768 },
+          "tool_call": true,
+          "reasoning": true
+        }
+      }
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // Agents: the OpenCode-native roster, all on Venice. The Oh My OpenAgent
+  // layer (config/omo.jsonc) tunes the same agents plus its own categories.
+  // The red-team specialists live as markdown in agents/ (loaded via
+  // OPENCODE_CONFIG_DIR by the launcher).
+  // ---------------------------------------------------------------------------
+  "agent": {
+    "build": {
+      "description": "Default primary agent for coding, writing, and debugging.",
+      "mode": "primary",
+      "model": "venice/qwen-3-6-plus",
+      "steps": 25,
+      "temperature": 0.1,
+      "maxTokens": 32768,
+      "permission": "allow"
+    },
+    "plan": {
+      "description": "Plan agent: scope, decompose, and produce implementation plans.",
+      "mode": "subagent",
+      "model": "venice/qwen-3-6-plus",
+      "steps": 15,
+      "temperature": 0.2,
+      "maxTokens": 16384,
+      "permission": "allow"
+    },
+    "explore": {
+      "description": "Explore agent: contextual codebase search and pattern discovery.",
+      "mode": "subagent",
+      "model": "venice/olafangensan-glm-4.7-flash-heretic",
+      "steps": 15,
+      "temperature": 0.1,
+      "maxTokens": 8192,
+      "permission": "allow"
+    },
+    "oracle": {
+      "description": "High-IQ read-only consultant for architecture, debugging, and tradeoffs.",
+      "mode": "subagent",
+      "model": "venice/aion-labs-aion-3-5",
+      "steps": 20,
+      "temperature": 0.2,
+      "maxTokens": 32768,
+      "permission": "allow"
+    },
+    "reviewer": {
+      "description": "Code-review agent: catches bugs, slop, and anti-patterns.",
+      "mode": "subagent",
+      "model": "venice/qwen-3-6-plus",
+      "steps": 15,
+      "temperature": 0.2,
+      "maxTokens": 16384,
+      "permission": "allow"
+    },
+    "frontend": {
+      "description": "Visual / frontend specialist: UI, UX, styling, and component work.",
+      "mode": "subagent",
+      "model": "venice/qwen-3-6-plus",
+      "steps": 20,
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "maxTokens": 16384,
+      "permission": "allow"
+    },
+    "asset-qa": {
+      "description": "Visual asset QA: assess screenshots, textures, model previews, and reference images.",
+      "mode": "subagent",
+      "model": "venice/qwen-3-8-27b",
+      "steps": 15,
+      "temperature": 0.0,
+      "maxTokens": 16384,
+      "permission": "allow"
+    },
+    "multimodal-looker": {
+      "description": "Analyze media files (PDFs, images, diagrams, video frames).",
+      "mode": "subagent",
+      "model": "venice/qwen-3-8-27b",
+      "steps": 15,
+      "temperature": 0.1,
+      "maxTokens": 16384,
+      "permission": "allow"
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // Skills: Hoplon's offensive-security skills plus any user skills.
+  // ---------------------------------------------------------------------------
+  "skills": {
+    "paths": ["{env:HOPLON_HOME}/skills"],
+    "urls": []
+  },
+
+  // ---------------------------------------------------------------------------
+  // MCP servers: recon/intel servers are enabled by default; the weapons
+  // (scan/exploit/AD/RE) are present but disabled so they do not bloat context
+  // or run without intent. Enable per engagement, or per agent via tools.
+  // Every server that wraps a CLI tool requires the underlying binary on PATH.
+  // ---------------------------------------------------------------------------
+  "mcp": {
+    "shodan": {
+      "type": "local",
+      "command": ["npx", "-y", "@burtthecoder/mcp-shodan"],
+      "environment": { "SHODAN_API_KEY": "{env:SHODAN_API_KEY}" },
+      "enabled": true,
+      "timeout": 60000
+    },
+    "cve": {
+      "type": "local",
+      "command": ["uvx", "--from", "cve-mcp-server", "cve-mcp"],
+      "environment": {
+        "NVD_API_KEY": "{env:NVD_API_KEY}",
+        "VIRUSTOTAL_KEY": "{env:VIRUSTOTAL_KEY}",
+        "SHODAN_KEY": "{env:SHODAN_API_KEY}",
+        "GREYNOISE_API_KEY": "{env:GREYNOISE_API_KEY}"
+      },
+      "enabled": true,
+      "timeout": 60000
+    },
+    "nmap": {
+      "type": "local",
+      "command": ["npx", "-y", "mcp-nmap-server"],
+      "enabled": false,
+      "timeout": 300000
+    },
+    "pentest": {
+      "type": "local",
+      "command": ["npx", "-y", "pentest-mcp"],
+      "enabled": false,
+      "timeout": 300000
+    },
+    "nuclei": {
+      "type": "local",
+      "command": ["docker", "run", "-i", "--rm", "nuclei-mcp:latest"],
+      "enabled": false,
+      "timeout": 300000
+    },
+    "sqlmap": {
+      "type": "local",
+      "command": ["docker", "run", "-i", "--rm", "sqlmap-mcp:latest"],
+      "enabled": false,
+      "timeout": 300000
+    },
+    "ffuf": {
+      "type": "local",
+      "command": ["docker", "run", "-i", "--rm", "ffuf-mcp:latest"],
+      "enabled": false,
+      "timeout": 300000
+    },
+    "burp": {
+      "type": "remote",
+      "url": "http://127.0.0.1:9876",
+      "enabled": false
+    },
+    "metasploit": {
+      "type": "local",
+      "command": [
+        "uv",
+        "--directory",
+        "/opt/MetasploitMCP",
+        "run",
+        "MetasploitMCP.py",
+        "--transport",
+        "stdio"
+      ],
+      "environment": { "MSF_PASSWORD": "{env:MSF_PASSWORD}" },
+      "enabled": false,
+      "timeout": 300000
+    },
+    "bloodhound": {
+      "type": "local",
+      "command": ["python", "/opt/BloodHound-MCP-AI/BloodHound-MCP.py"],
+      "environment": {
+        "BLOODHOUND_URI": "bolt://localhost:7687",
+        "BLOODHOUND_USERNAME": "neo4j",
+        "BLOODHOUND_PASSWORD": "{env:NEO4J_PASSWORD}"
+      },
+      "enabled": false,
+      "timeout": 300000
+    },
+    "ghidra": {
+      "type": "local",
+      "command": ["docker", "run", "-i", "--rm", "-v", "/samples:/samples:ro", "ghidra-mcp:latest"],
+      "enabled": false,
+      "timeout": 300000
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // Global tool gating: keep the weapon MCPs off for every agent unless an
+  // agent explicitly re-enables them (see agents/*.md).
+  // ---------------------------------------------------------------------------
+  "tools": {
+    "nmap*": false,
+    "pentest*": false,
+    "nuclei*": false,
+    "sqlmap*": false,
+    "ffuf*": false,
+    "burp*": false,
+    "metasploit*": false,
+    "bloodhound*": false,
+    "ghidra*": false
+  },
+
+  // ---------------------------------------------------------------------------
+  // Instructions: the operator persona and rules of engagement.
+  // ---------------------------------------------------------------------------
+  "instructions": ["{env:HOPLON_HOME}/AGENTS.md"],
+
+  // ---------------------------------------------------------------------------
+  // Runtime: portable (no self-update, no sharing), with LSP + formatter.
+  // ---------------------------------------------------------------------------
+  "lsp": true,
+  "formatter": true,
+  "snapshot": true,
+  "autoupdate": false,
+  "share": "disabled",
+  "logLevel": "INFO",
+  "tool_output": {
+    "max_lines": 800,
+    "max_bytes": 512000
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true
+  },
+  "experimental": {
+    "batch_tool": true,
+    "openTelemetry": false,
+    "continue_loop_on_deny": true,
+    "mcp_timeout": 30000,
+    "primary_tools": ["edit", "bash", "task", "write"]
+  },
+  "attachment": {
+    "image": {
+      "auto_resize": true,
+      "max_width": 2000,
+      "max_height": 2000,
+      "max_base64_bytes": 5242880
+    }
+  },
+  "watcher": {
+    "ignore": ["node_modules", ".git", "dist", "build", "target", ".next", "*.log"]
+  },
+  "server": {
+    "port": 8080,
+    "hostname": "127.0.0.1",
+    "mdns": false
+  }
+}
