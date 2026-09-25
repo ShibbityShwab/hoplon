@@ -84,11 +84,11 @@ and re-run the installer. Autoupdate is disabled by design.
 ## How do I verify the claims in the README?
 
 Every claim is checkable from the repo. See the "How to verify" section in the
-[README](../README.md) and the shell tests in `tests/`.
+[README](https://github.com/ShibbityShwab/hoplon/blob/main/README.md) and the shell tests in `tests/`.
 
 ## Where do I report a security issue?
 
-See [SECURITY.md](../SECURITY.md). Do not open a public issue for a
+See [SECURITY.md](https://github.com/ShibbityShwab/hoplon/blob/main/SECURITY.md). Do not open a public issue for a
 vulnerability.
 
 ## Is this legal to use?

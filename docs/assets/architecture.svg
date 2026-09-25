@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  HOPLON architecture (1200x700), source for architecture.png.
+  Regenerate PNG: rsvg-convert -w 1200 -h 700 -o architecture.png architecture.svg
+  Palette from themes/hoplon.json.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700"
+     font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#262019" stroke-width="1"/>
+    </pattern>
+    <radialGradient id="bgGlow" cx="0.32" cy="0.28" r="0.85">
+      <stop offset="0" stop-color="#c9973f" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#c9973f" stop-opacity="0"/>
+    </radialGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9c7a38"/>
+    </marker>
+    <linearGradient id="nodeTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b241b"/>
+      <stop offset="1" stop-color="#201b15"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="700" fill="#15120e"/>
+  <rect x="0" y="0" width="1200" height="700" fill="url(#grid)" opacity="0.45"/>
+  <rect x="0" y="0" width="1200" height="700" fill="url(#bgGlow)"/>
+
+  <!-- header -->
+  <text x="60" y="72" fill="#c9973f" font-size="23" font-weight="bold" letter-spacing="1">HOPLON runtime</text>
+  <text x="60" y="99" fill="#9a9080" font-size="13">portable launcher to isolated opencode</text>
+  <text x="1140" y="72" fill="#8b8172" font-size="11" letter-spacing="2.5" text-anchor="end">AUTHORIZED ENGAGEMENTS ONLY</text>
+
+  <!-- arrows (drawn under nodes so ends tuck cleanly) -->
+  <line x1="260" y1="350" x2="322" y2="350" stroke="#9c7a38" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="550" y1="350" x2="637" y2="350" stroke="#9c7a38" stroke-width="2" marker-end="url(#arrow)"/>
+  <polyline points="855,350 905,350 905,290 932,290" fill="none" stroke="#9c7a38" stroke-width="2" marker-end="url(#arrow)"/>
+  <polyline points="855,350 905,350 905,410 932,410" fill="none" stroke="#9c7a38" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- bubblewrap sandbox wrapping opencode -->
+  <rect x="600" y="225" width="300" height="250" rx="14"
+        fill="none" stroke="#9c7a38" stroke-width="1.5" stroke-dasharray="7 7"/>
+  <text x="606" y="213" fill="#e3b25c" font-size="12.5">bubblewrap sandbox (HOPLON_SANDBOX=1)</text>
+
+  <!-- node: hoplon launcher -->
+  <rect x="60" y="295" width="200" height="110" rx="10" fill="url(#nodeTop)" stroke="#3a3128" stroke-width="1.5"/>
+  <rect x="76" y="317" width="10" height="10" fill="#c9973f"/>
+  <text x="96" y="327" fill="#e6ded0" font-size="17" font-weight="bold">hoplon launcher</text>
+  <text x="76" y="360" fill="#9a9080" font-size="12.5">portable entrypoint</text>
+  <text x="76" y="382" fill="#8b8172" font-size="12.5">./hoplon</text>
+
+  <!-- node: isolated home -->
+  <rect x="330" y="295" width="220" height="110" rx="10" fill="url(#nodeTop)" stroke="#3a3128" stroke-width="1.5"/>
+  <rect x="346" y="317" width="10" height="10" fill="#c9973f"/>
+  <text x="366" y="327" fill="#e6ded0" font-size="17" font-weight="bold">isolated $HOME</text>
+  <text x="346" y="360" fill="#9a9080" font-size="12.5">(./home)</text>
+  <text x="346" y="382" fill="#8b8172" font-size="12.5">config, skills, state</text>
+
+  <!-- node: opencode (inside sandbox) -->
+  <rect x="645" y="295" width="210" height="110" rx="10" fill="url(#nodeTop)" stroke="#c9973f" stroke-width="1.5"/>
+  <rect x="661" y="317" width="10" height="10" fill="#c9973f"/>
+  <text x="681" y="327" fill="#e6ded0" font-size="17" font-weight="bold">opencode 1.18.25</text>
+  <text x="661" y="360" fill="#9a9080" font-size="12.5">agent runtime</text>
+  <text x="661" y="382" fill="#8b8172" font-size="12.5">$HOME bound in</text>
+
+  <!-- output: venice ai -->
+  <rect x="940" y="240" width="210" height="100" rx="10" fill="url(#nodeTop)" stroke="#3a3128" stroke-width="1.5"/>
+  <rect x="956" y="262" width="10" height="10" fill="#d85a45"/>
+  <text x="976" y="272" fill="#e6ded0" font-size="17" font-weight="bold">Venice AI</text>
+  <text x="956" y="306" fill="#9a9080" font-size="12.5">(uncensored models)</text>
+  <text x="956" y="326" fill="#8b8172" font-size="12.5">inference</text>
+
+  <!-- output: mcp servers -->
+  <rect x="940" y="360" width="210" height="100" rx="10" fill="url(#nodeTop)" stroke="#3a3128" stroke-width="1.5"/>
+  <rect x="956" y="382" width="10" height="10" fill="#d9a441"/>
+  <text x="976" y="392" fill="#e6ded0" font-size="17" font-weight="bold">MCP servers</text>
+  <text x="956" y="424" fill="#9a9080" font-size="12.5">(venice enabled,</text>
+  <text x="956" y="444" fill="#9a9080" font-size="12.5">weapons gated)</text>
+
+  <!-- footer -->
+  <line x1="60" y1="600" x2="1140" y2="600" stroke="#3a3128" stroke-width="1"/>
+  <line x1="60" y1="599" x2="140" y2="599" stroke="#d85a45" stroke-width="3"/>
+  <text x="60" y="634" fill="#8b8172" font-size="11.5" letter-spacing="2.5">AUTHORIZED ENGAGEMENTS ONLY</text>
+  <text x="1140" y="634" fill="#9c7a38" font-size="11.5" letter-spacing="2.5" text-anchor="end">PORTABLE // ISOLATED // ATTRIBUTABLE</text>
+</svg>

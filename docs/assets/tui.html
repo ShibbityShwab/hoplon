@@ -1,0 +1,203 @@
+<!doctype html>
+<!--
+  HOPLON TUI mockup (1280x720): home screen inside a terminal window.
+  Regenerate: playwright screenshot --viewport-size=1280,720 tui.html tui.png
+  Palette and wordmark come from themes/hoplon.json and tui/hoplon-brand.tsx.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>HOPLON TUI (1280x720)</title>
+<style>
+  :root{
+    --iron:#15120e;
+    --iron-raised:#201b15;
+    --iron-edge:#3a3128;
+    --iron-hairline:#262019;
+    --iron-high:#2b241b;
+    --bronze:#c9973f;
+    --bronze-bright:#e3b25c;
+    --bronze-dim:#9c7a38;
+    --bronze-deep:#6f5215;
+    --bronze-pale:#f0d8a8;
+    --bone:#e6ded0;
+    --ash:#9a9080;
+    --ash-dim:#8b8172;
+    --crimson:#d85a45;
+    --crimson-bright:#e87a63;
+    --ochre:#d9a441;
+    --patina:#7fae7a;
+    --patina-bright:#9ac48f;
+    --steel:#8aa3b8;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1280px;height:720px;overflow:hidden;background:var(--iron)}
+  body{
+    position:relative;
+    font-family:"FantasqueSansM Nerd Font Mono","DejaVu Sans Mono","Noto Sans Mono",monospace;
+    color:var(--bone);
+    -webkit-font-smoothing:antialiased;
+  }
+  .layer{position:absolute;inset:0;pointer-events:none}
+  .glow{background:
+    radial-gradient(900px 520px at 26% 12%, rgba(201,151,63,0.12), rgba(201,151,63,0) 66%),
+    radial-gradient(720px 520px at 92% 92%, rgba(216,90,69,0.07), rgba(216,90,69,0) 64%)}
+  .scan{background:repeating-linear-gradient(0deg, rgba(230,222,208,0.018) 0 1px, rgba(230,222,208,0) 1px 4px)}
+  .vignette{background:radial-gradient(130% 130% at 50% 45%, rgba(21,18,14,0) 52%, rgba(21,18,14,0.86) 100%)}
+
+  .window{
+    position:absolute;left:24px;top:24px;width:1232px;height:672px;
+    background:var(--iron);
+    border:1px solid var(--iron-edge);
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 30px 80px rgba(21,18,14,0.95), 0 0 110px rgba(201,151,63,0.07);
+  }
+
+  .titlebar{
+    position:absolute;left:0;top:0;right:0;height:46px;
+    background:linear-gradient(180deg,var(--iron-high),var(--iron-raised));
+    border-bottom:1px solid var(--iron-edge);
+  }
+  .lights{position:absolute;left:20px;top:0;height:46px;display:flex;align-items:center;gap:9px}
+  .light{width:12px;height:12px;border-radius:50%;display:block}
+  .light.close{background:var(--crimson)}
+  .light.min{background:var(--ochre)}
+  .light.max{background:var(--patina)}
+  .title{
+    position:absolute;left:0;right:0;top:0;height:46px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;letter-spacing:.06em;color:var(--bone);
+  }
+  .title .dim{color:var(--ash-dim);margin-left:10px}
+  .tb-right{
+    position:absolute;right:20px;top:0;height:46px;display:flex;align-items:center;
+    font-size:11.5px;letter-spacing:.22em;color:var(--ash-dim);
+  }
+
+  .screen{position:absolute;left:0;top:46px;right:0;bottom:42px;background:var(--iron);
+    padding:36px 46px 0}
+
+  .wordmark{width:522px;height:90px;
+    filter:drop-shadow(0 0 14px rgba(227,178,92,0.26)) drop-shadow(0 0 40px rgba(201,151,63,0.14))}
+
+  .brandline{margin-top:10px;font-size:17px;letter-spacing:.03em;color:var(--ash)}
+  .brandline .lambda{color:var(--bronze)}
+
+  .prompts{margin-top:34px;font-size:15.5px;line-height:33px}
+  .line{display:block;white-space:pre;color:var(--bone)}
+  .line.out{color:var(--ash)}
+  .ps1{color:var(--bronze)}
+  .path{color:var(--steel)}
+  .sigil{color:var(--ash-dim)}
+  .cmd{color:var(--bone)}
+  .ok{color:var(--patina)}
+  .gate{color:var(--ochre)}
+  .roe{color:var(--ochre)}
+  .cursor{display:inline-block;width:9px;height:17px;background:var(--bronze);
+    vertical-align:-3px;margin-left:8px;
+    box-shadow:0 0 10px rgba(227,178,92,0.55)}
+  .gap{display:block;height:28px}
+
+  .statusbar{
+    position:absolute;left:0;right:0;bottom:0;height:42px;
+    background:var(--iron-raised);
+    border-top:1px solid var(--iron-edge);
+    display:flex;align-items:center;
+    font-size:13px;color:var(--ash);
+  }
+  .statusbar .brand{
+    display:flex;align-items:center;gap:10px;
+    padding:0 18px;height:100%;color:var(--bronze);letter-spacing:.18em;font-size:12px;
+  }
+  .statusbar .brand i{width:9px;height:9px;background:var(--bronze);display:block}
+  .seg{padding:0 16px;height:100%;display:flex;align-items:center;gap:7px}
+  .seg b{font-weight:inherit;color:var(--bronze-bright)}
+  .seg .value{color:var(--bone)}
+  .seg .on{color:var(--patina)}
+  .sep{width:1px;height:18px;background:var(--iron-edge)}
+  .spacer{flex:1}
+  .seg.right{padding-right:22px;color:var(--ash-dim);letter-spacing:.12em;font-size:11.5px}
+</style>
+</head>
+<body>
+  <div class="layer glow"></div>
+  <div class="layer scan"></div>
+  <div class="layer vignette"></div>
+
+  <div class="window">
+    <div class="titlebar">
+      <div class="lights"><span class="light close"></span><span class="light min"></span><span class="light max"></span></div>
+      <div class="title">hoplon</div>
+      <div class="tb-right">SANDBOXED</div>
+    </div>
+
+    <div class="screen">
+      <div class="wordmark" id="wordmark"></div>
+      <div class="brandline"><span class="lambda">&#923;</span> offensive security console</div>
+
+      <div class="prompts">
+        <span class="line"><span class="ps1">hoplon</span> <span class="path">~</span> <span class="sigil">$</span> <span class="cmd">./hoplon doctor</span></span>
+        <span class="line out"><span class="ok">[ok]</span>   5 MCP servers enabled</span>
+        <span class="line out"><span class="ok">[ok]</span>   venice/qwen-3-6-plus reachable</span>
+        <span class="line out"><span class="gate">[gate]</span> weapons locked to specialists</span>
+        <span class="gap"></span>
+        <span class="line"><span class="ps1">hoplon</span> <span class="path">~/engagements/acme</span> <span class="sigil">$</span> <span class="cmd">recon --passive --scope scope.txt</span></span>
+        <span class="line out"><span class="roe">[roe]</span>  authorization verified  scope: 12 hosts  window: 72h</span>
+        <span class="line out"><span class="ok">[ok]</span>   surface mapped  0 packets sent</span>
+        <span class="line out"><span class="ok">[ok]</span>   3 subdomains, 9 hosts resolved</span>
+        <span class="gap"></span>
+        <span class="line"><span class="ps1">hoplon</span> <span class="path">~/engagements/acme</span> <span class="sigil">$</span><span class="cursor"></span></span>
+      </div>
+    </div>
+
+    <div class="statusbar">
+      <span class="brand"><i></i>HOPLON</span>
+      <span class="sep"></span>
+      <span class="seg"><b>5</b> MCP</span>
+      <span class="sep"></span>
+      <span class="seg"><span class="value">venice/qwen-3-6-plus</span></span>
+      <span class="sep"></span>
+      <span class="seg">sandbox: <span class="on">on</span></span>
+      <span class="spacer"></span>
+      <span class="seg right">ENG-2026-114</span>
+    </div>
+  </div>
+
+<script>
+// Wordmark block glyphs, verbatim from tui/hoplon-brand.tsx (29 cols x 5 rows).
+const WORDMARK = [
+  "\u2588  \u2588 \u2588\u2588\u2588\u2588 \u2588\u2588\u2588\u2588 \u2588    \u2588\u2588\u2588\u2588 \u2588  \u2588",
+  "\u2588  \u2588 \u2588  \u2588 \u2588  \u2588 \u2588    \u2588  \u2588 \u2588\u2588 \u2588",
+  "\u2588\u2588\u2588\u2588 \u2588  \u2588 \u2588\u2588\u2588\u2588 \u2588    \u2588  \u2588 \u2588 \u2588\u2588",
+  "\u2588  \u2588 \u2588  \u2588 \u2588    \u2588    \u2588  \u2588 \u2588  \u2588",
+  "\u2588  \u2588 \u2588\u2588\u2588\u2588 \u2588    \u2588\u2588\u2588\u2588 \u2588\u2588\u2588\u2588 \u2588  \u2588",
+];
+function blocks(cell){
+  const out=[];
+  WORDMARK.forEach((row,y)=>{
+    for(let x=0;x<row.length;){
+      if(row[x]==="\u2588"){
+        let w=1;
+        while(row[x+w]==="\u2588") w++;
+        out.push(`<rect x="${x*cell}" y="${y*cell}" width="${w*cell}" height="${cell}"/>`);
+        x+=w;
+      } else { x++; }
+    }
+  });
+  return out.join("");
+}
+const cols=WORDMARK[0].length, rows=WORDMARK.length, cell=18;
+document.getElementById("wordmark").innerHTML=
+  `<svg width="${cols*cell}" height="${rows*cell}" viewBox="0 0 ${cols*cell} ${rows*cell}" role="img" aria-label="HOPLON" shape-rendering="crispEdges">
+     <defs>
+       <linearGradient id="wm" x1="0" y1="0" x2="0" y2="1">
+         <stop offset="0" stop-color="#e3b25c"/>
+         <stop offset="1" stop-color="#c9973f"/>
+       </linearGradient>
+     </defs>
+     <g fill="url(#wm)">${blocks(cell)}</g>
+   </svg>`;
+</script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!doctype html>
+<!--
+  HOPLON icon / favicon (512x512): bronze lambda on an iron rounded square.
+  Regenerate: playwright screenshot --viewport-size=512,512 icon.html icon.png
+  Palette from themes/hoplon.json.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>HOPLON icon (512x512)</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:512px;height:512px;overflow:hidden;background:#15120e}
+</style>
+</head>
+<body>
+<svg width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="HOPLON">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#201b15"/>
+      <stop offset="1" stop-color="#15120e"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.48" r="0.55">
+      <stop offset="0" stop-color="#c9973f" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#c9973f" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="lambda" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e3b25c"/>
+      <stop offset="1" stop-color="#c9973f"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="3" y="3" width="506" height="506" rx="109" fill="none" stroke="#3a3128" stroke-width="6"/>
+  <rect x="26" y="26" width="460" height="460" rx="88" fill="url(#glow)"/>
+
+  <path d="M 152 392 L 256 120 L 360 392"
+        fill="none" stroke="url(#lambda)" stroke-width="62"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</body>
+</html>

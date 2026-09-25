@@ -24,7 +24,7 @@ commercially.
 | --- | --- | --- | --- |
 | Oh My OpenAgent | `oh-my-openagent` | `5.0.0-beta.62` | SUL-1.0 (source-available) |
 
-See [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) for the full provenance
+See [THIRD_PARTY_NOTICES.md](https://github.com/ShibbityShwab/hoplon/blob/main/THIRD_PARTY_NOTICES.md) for the full provenance
 list, including OpenCode, Magic Context, the Venice MCP server, and the Venice
 skills.
 

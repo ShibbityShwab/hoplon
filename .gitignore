@@ -21,8 +21,14 @@
 /bin/**/package-lock.json
 /bin/**/bun.lock
 
+# OMO project state written when an agent runs inside this repo
+/.omo/
+
 # Local runtime junk
 *.log
 *.tmp
 .DS_Store
 __pycache__/
+
+# MkDocs build output (its source is docs/ and mkdocs.yml)
+/site/

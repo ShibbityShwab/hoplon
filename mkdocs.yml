@@ -1,0 +1,77 @@
+# MkDocs Material configuration for the Hoplon documentation site.
+# Built and deployed to GitHub Pages by .github/workflows/pages.yml.
+
+site_name: Hoplon
+site_url: https://shibbityshwab.github.io/hoplon/
+site_description: >-
+  A portable, uncensored, red-team-focused OpenCode distribution that runs on
+  Venice AI with the Oh My OpenAgent harness.
+site_author: Hoplon contributors
+repo_url: https://github.com/ShibbityShwab/hoplon
+repo_name: ShibbityShwab/hoplon
+edit_uri: edit/main/docs/
+copyright: Hoplon is released under AGPL-3.0-or-later
+
+docs_dir: docs
+
+theme:
+  name: material
+  language: en
+  logo: assets/icon.png
+  favicon: assets/icon.png
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.top
+    - navigation.sections
+    - search.suggest
+    - content.code.copy
+    - toc.follow
+
+extra_css:
+  - assets/extra.css
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Getting Started: getting-started.md
+  - Configuration: configuration.md
+  - Models: models.md
+  - MCP servers: mcp-servers.md
+  - Sandbox: sandbox.md
+  - Isolation: isolation.md
+  - Rules of Engagement: rules-of-engagement.md
+  - OMO: omo.md
+  - Architecture: architecture.md
+  - Security: security.md
+  - Troubleshooting: troubleshooting.md
+  - FAQ: faq.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.details
+  # Mermaid is enabled through a custom superfences fence. The fence format is
+  # intentionally omitted: pymdownx defaults to its built-in fence_code_format,
+  # which emits <pre class="mermaid">, exactly what Material renders. Omitting
+  # the !!python/name tag keeps the file parseable by yaml.safe_load.
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+  - toc:
+      permalink: true

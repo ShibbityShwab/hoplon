@@ -1,0 +1,34 @@
+/* Hoplon bronze-on-iron palette for Material for MkDocs.
+   Material exposes its theme colours as CSS custom properties. Setting the
+   primary and accent tokens here gives the docs the same warm bronze as the
+   hoplon TUI theme while keeping the light and dark schemes distinct. */
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #c9973f;
+  --md-primary-fg-color--light: #e3b25c;
+  --md-primary-fg-color--dark: #9c7a38;
+  --md-primary-bg-color: #15120e;
+  --md-primary-bg-color--light: #201b15;
+
+  --md-accent-fg-color: #8a5f12;
+  --md-accent-fg-color--transparent: #8a5f121a;
+  --md-accent-bg-color: #15120e;
+  --md-accent-bg-color--light: #201b15;
+
+  --md-typeset-a-color: #8a5f12;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #c9973f;
+  --md-primary-fg-color--light: #e3b25c;
+  --md-primary-fg-color--dark: #9c7a38;
+  --md-primary-bg-color: #15120e;
+  --md-primary-bg-color--light: #201b15;
+
+  --md-accent-fg-color: #e3b25c;
+  --md-accent-fg-color--transparent: #e3b25c1a;
+  --md-accent-bg-color: #15120e;
+  --md-accent-bg-color--light: #201b15;
+
+  --md-typeset-a-color: #c9973f;
+}

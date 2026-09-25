@@ -1,0 +1,120 @@
+<!doctype html>
+<!--
+  HOPLON README banner (1280x360).
+  Regenerate: serve this file over http (or open via file://), then
+    playwright screenshot --viewport-size=1280,360 banner.html banner.png
+  Palette and wordmark come from themes/hoplon.json and tui/hoplon-brand.tsx.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>HOPLON banner (1280x360)</title>
+<style>
+  :root{
+    --iron:#15120e;
+    --iron-raised:#201b15;
+    --iron-edge:#3a3128;
+    --iron-hairline:#262019;
+    --iron-high:#2b241b;
+    --bronze:#c9973f;
+    --bronze-bright:#e3b25c;
+    --bronze-dim:#9c7a38;
+    --bronze-deep:#6f5215;
+    --bronze-pale:#f0d8a8;
+    --bone:#e6ded0;
+    --ash:#9a9080;
+    --ash-dim:#8b8172;
+    --crimson:#d85a45;
+    --crimson-bright:#e87a63;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1280px;height:360px;overflow:hidden;background:var(--iron)}
+  body{
+    position:relative;
+    font-family:"FantasqueSansM Nerd Font Mono","DejaVu Sans Mono","Noto Sans Mono",monospace;
+    color:var(--bone);
+    -webkit-font-smoothing:antialiased;
+  }
+  .layer{position:absolute;inset:0;pointer-events:none}
+  .glow{background:
+    radial-gradient(860px 320px at 50% 20%, rgba(201,151,63,0.17), rgba(201,151,63,0) 68%),
+    radial-gradient(640px 280px at 86% 100%, rgba(216,90,69,0.07), rgba(216,90,69,0) 64%),
+    radial-gradient(520px 260px at 12% 92%, rgba(227,178,92,0.05), rgba(227,178,92,0) 70%)}
+  .scan{background:repeating-linear-gradient(0deg, rgba(230,222,208,0.02) 0 1px, rgba(230,222,208,0) 1px 4px)}
+  .vignette{background:radial-gradient(128% 160% at 50% 42%, rgba(21,18,14,0) 46%, rgba(21,18,14,0.92) 100%)}
+
+  .bracket{position:absolute;width:40px;height:40px;border:2px solid var(--bronze-deep);opacity:.8}
+  .bracket.tl{top:22px;left:22px;border-right:0;border-bottom:0}
+  .bracket.tr{top:22px;right:22px;border-left:0;border-bottom:0}
+  .bracket.bl{bottom:22px;left:22px;border-right:0;border-top:0}
+  .bracket.br{bottom:22px;right:22px;border-left:0;border-top:0}
+
+  .wordmark{position:absolute;left:176px;top:38px;width:928px;height:160px;
+    filter:drop-shadow(0 0 18px rgba(227,178,92,0.30)) drop-shadow(0 0 54px rgba(201,151,63,0.17))}
+
+  .rule{position:absolute;left:430px;right:430px;top:228px;height:1px;background:var(--iron-edge)}
+
+  .tagline{
+    position:absolute;left:0;right:0;top:248px;text-align:center;
+    font-size:25px;letter-spacing:.02em;color:var(--bone);
+  }
+  .tagline .lambda{color:var(--crimson);margin-right:18px}
+
+  .footline{
+    position:absolute;left:0;right:0;bottom:22px;text-align:center;
+    font-size:12px;letter-spacing:.30em;color:var(--ash-dim);
+  }
+</style>
+</head>
+<body>
+  <div class="layer glow"></div>
+  <div class="layer scan"></div>
+  <div class="layer vignette"></div>
+
+  <div class="bracket tl"></div>
+  <div class="bracket tr"></div>
+  <div class="bracket bl"></div>
+  <div class="bracket br"></div>
+
+  <div class="wordmark" id="wordmark"></div>
+  <div class="rule"></div>
+  <div class="tagline"><span class="lambda">&#923;</span>Portable uncensored red-team OpenCode on Venice AI</div>
+  <div class="footline">PORTABLE // ISOLATED // ATTRIBUTABLE</div>
+
+<script>
+// Wordmark block glyphs, verbatim from tui/hoplon-brand.tsx (29 cols x 5 rows).
+const WORDMARK = [
+  "\u2588  \u2588 \u2588\u2588\u2588\u2588 \u2588\u2588\u2588\u2588 \u2588    \u2588\u2588\u2588\u2588 \u2588  \u2588",
+  "\u2588  \u2588 \u2588  \u2588 \u2588  \u2588 \u2588    \u2588  \u2588 \u2588\u2588 \u2588",
+  "\u2588\u2588\u2588\u2588 \u2588  \u2588 \u2588\u2588\u2588\u2588 \u2588    \u2588  \u2588 \u2588 \u2588\u2588",
+  "\u2588  \u2588 \u2588  \u2588 \u2588    \u2588    \u2588  \u2588 \u2588  \u2588",
+  "\u2588  \u2588 \u2588\u2588\u2588\u2588 \u2588    \u2588\u2588\u2588\u2588 \u2588\u2588\u2588\u2588 \u2588  \u2588",
+];
+function blocks(cell){
+  const out=[];
+  WORDMARK.forEach((row,y)=>{
+    for(let x=0;x<row.length;){
+      if(row[x]==="\u2588"){
+        let w=1;
+        while(row[x+w]==="\u2588") w++;
+        out.push(`<rect x="${x*cell}" y="${y*cell}" width="${w*cell}" height="${cell}"/>`);
+        x+=w;
+      } else { x++; }
+    }
+  });
+  return out.join("");
+}
+const cols=WORDMARK[0].length, rows=WORDMARK.length, cell=32;
+document.getElementById("wordmark").innerHTML=
+  `<svg width="${cols*cell}" height="${rows*cell}" viewBox="0 0 ${cols*cell} ${rows*cell}" role="img" aria-label="HOPLON" shape-rendering="crispEdges">
+     <defs>
+       <linearGradient id="wm" x1="0" y1="0" x2="0" y2="1">
+         <stop offset="0" stop-color="#e3b25c"/>
+         <stop offset="1" stop-color="#c9973f"/>
+       </linearGradient>
+     </defs>
+     <g fill="url(#wm)">${blocks(cell)}</g>
+   </svg>`;
+</script>
+</body>
+</html>

@@ -73,7 +73,7 @@ absent by design; `HOPLON_SHARE_SSH` and `HOPLON_SHARE_GH` are opt-in. See
 
 ## Reporting a vulnerability
 
-See [SECURITY.md](../SECURITY.md). Do not open a public issue for a
+See [SECURITY.md](https://github.com/ShibbityShwab/hoplon/blob/main/SECURITY.md). Do not open a public issue for a
 vulnerability.
 
 ## Operator responsibility
