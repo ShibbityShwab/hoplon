@@ -490,14 +490,17 @@ install_go_tarball() {
     rm -rf "$tmp"
     return 1
   fi
-  if ! fetch_url "$url.sha256" "$tmp/$tarball.sha256"; then
-    warn "could not fetch checksum for $tarball; refusing to install Go"
+  if ! fetch_url "https://go.dev/dl/?mode=json&include=all" "$tmp/checksums.json"; then
+    warn "could not fetch the go.dev checksum index; refusing to install Go"
     rm -rf "$tmp"
     return 1
   fi
-  expected="$(grep -oE '[0-9a-fA-F]{64}' "$tmp/$tarball.sha256" 2> /dev/null | head -n 1 || true)"
+  expected="$(awk -v f="\"filename\": \"$tarball\"" '
+    $0 ~ f { found = 1 }
+    found && /"sha256":/ { gsub(/[",]/, "", $2); print $2; exit }
+  ' "$tmp/checksums.json")"
   if [ -z "$expected" ]; then
-    warn "checksum file for $tarball is malformed"
+    warn "no published sha256 for $tarball in the go.dev index"
     rm -rf "$tmp"
     return 1
   fi

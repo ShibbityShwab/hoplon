@@ -7,13 +7,13 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
+      - 'requirements-docs.txt'
   workflow_dispatch:
 
-# Pages deployment needs to mint an OIDC token and write the Pages environment.
+# Least privilege: the build job only reads the repo and the Pages site
+# configuration. The write scopes sit on the deploy job that publishes.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # Allow one concurrent deployment, and never cancel a run that is already
 # publishing. A cancelled deploy can leave the live site on a partial artifact.
@@ -25,6 +25,9 @@ jobs:
   build:
     name: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,7 +38,7 @@ jobs:
         with:
           python-version: '3.x'
       - name: Install MkDocs Material
-        run: pip install mkdocs-material
+        run: pip install --require-hashes -r requirements-docs.txt
       - name: Build site
         run: mkdocs build --strict
       - name: Upload Pages artifact
@@ -47,6 +50,9 @@ jobs:
     name: deploy
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

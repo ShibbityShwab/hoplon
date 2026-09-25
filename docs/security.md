@@ -71,9 +71,18 @@ host file swapped; the next run from the same tree self-heals from the backup.
 ## Supply chain
 
 Plugins and MCP servers are fetched at runtime. Every `npx` and `uvx` server is
-version-pinned. The four Docker images are locally built and tagged `:latest`;
-pin them by digest. The `metasploit` and `bloodhound` servers run local checkouts
-under `/opt`; pin those by git commit. See [MCP servers](mcp-servers.md).
+version-pinned. The red-team toolchain's release downloads are version-pinned
+(Go 1.24.0, Ghidra 12.1.4, Trivy 0.74.0, kubectl 1.31.0, jadx 1.5.6, upx 5.2.1,
+sliver 1.7.7, feroxbuster 2.13.1), but the apt, `pipx`, `cargo`, and
+`go install` paths it also uses are not digest-pinned, so treat a `--full`
+guest as a trust boundary rather than a verified one. The four Docker images
+are locally built and tagged `:latest`; pin them by digest. The `metasploit`
+and `bloodhound` servers run local checkouts under `/opt`; pin those by git
+commit. CI pins `rhysd/actionlint` by image digest and installs the docs
+toolchain from the hash-verified `requirements-docs.txt` instead of a floating
+`pip install`. The vendored `venice-*` skills have no upstream revision pinned.
+See [MCP servers](mcp-servers.md) and the
+[third-party notices](https://github.com/ShibbityShwab/hoplon/blob/main/THIRD_PARTY_NOTICES.md).
 
 ## Isolation
 

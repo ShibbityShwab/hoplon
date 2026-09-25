@@ -5,17 +5,19 @@ version 3 or later (AGPL-3.0-or-later). See [LICENSE](LICENSE).
 
 Hoplon bundles, depends on, or invokes the third-party components listed below.
 Each keeps its own license. This file records provenance: the exact upstream
-URL, the pinned version, and the license. Full license texts for every non-AGPL
-component live in [LICENSES/](LICENSES/). MIT components carry their full text
+URL, the pinned version, and the license. MIT components carry their full text
 inline in this file, since the MIT license is short and its copyright line must
-travel with the component.
+travel with the component. Where a full license text ships in this repository it
+lives in [LICENSES/](LICENSES/); otherwise the component entry links the
+upstream license file, and the summary table marks the text as `upstream`.
 
 A note on the two categories that are easy to get wrong:
 
 - **Fetched, not redistributed.** Several components are downloaded at runtime
-  (by `npx`, `uvx`, OpenCode's plugin loader, or `scripts/install.sh`) and are
-  not committed to this repository. They are listed here because Hoplon depends
-  on them, not because their source ships in the tree.
+  (by `npx`, `uvx`, OpenCode's plugin loader, `scripts/install.sh`, or
+  `scripts/toolchain.sh`) and are not committed to this repository. They are
+  listed here because Hoplon depends on them, not because their source ships in
+  the tree.
 - **Source-available, not open source.** `oh-my-openagent` uses the Sustainable
   Use License, which is not OSI-approved and restricts commercial use. It is
   called out in full below.
@@ -25,14 +27,22 @@ A note on the two categories that are easy to get wrong:
 | Component | Version (pinned) | License (SPDX) | Redistributed? | Text |
 | --- | --- | --- | --- | --- |
 | opencode | 1.18.25 | MIT | No, fetched by installer | inline below |
-| veniceai/skills | vendored verbatim | MIT | Yes, in `skills/` | inline below |
+| veniceai/skills | vendored, no revision pinned | MIT | Yes, in `skills/` | inline below |
 | @veniceai/mcp-server | 0.2.0 | MIT | No, fetched by `npx` | inline below |
-| @cortexkit/opencode-magic-context | 0.42.2 | MIT | No, fetched by OpenCode | inline below |
+| @cortexkit/opencode-magic-context | 0.43.1 | MIT | No, fetched by OpenCode | inline below |
 | @burtthecoder/mcp-shodan | 1.0.32 | MIT | No, fetched by `npx` | inline below |
 | mcp-nmap-server | 1.0.1 | MIT | No, fetched by `npx` | inline below |
 | cve-mcp-server | 0.5.0 | MIT | No, fetched by `uvx` | inline below |
 | pentest-mcp | 0.9.0 | GPL-3.0-or-later | No, fetched by `npx` | LICENSES/GPL-3.0-or-later.txt |
 | oh-my-openagent | 5.0.0-beta.62 | SUL-1.0 | No, fetched at runtime | LICENSES/SUL-1.0.txt |
+| Go toolchain | 1.24.0 | BSD-3-Clause | No, fetched by `scripts/toolchain.sh` | upstream |
+| Ghidra | 12.1.4 | Apache-2.0 | No, fetched by `scripts/toolchain.sh` | upstream |
+| Trivy | 0.74.0 | Apache-2.0 | No, fetched by `scripts/toolchain.sh` | upstream |
+| kubectl | 1.31.0 | Apache-2.0 | No, fetched by `scripts/toolchain.sh` | upstream |
+| jadx | 1.5.6 | Apache-2.0 | No, fetched by `scripts/toolchain.sh` | upstream |
+| upx | 5.2.1 | GPL-2.0-or-later | No, fetched by `scripts/toolchain.sh` | upstream |
+| sliver | 1.7.7 | GPL-3.0-only | No, fetched by `scripts/toolchain.sh` | upstream |
+| feroxbuster | 2.13.1 | MIT | No, fetched by `scripts/toolchain.sh` | inline below |
 
 ---
 
@@ -86,6 +96,9 @@ SOFTWARE.
 - Redistributed: Yes. The 20 `venice-*` skill directories under `skills/` are
   vendored verbatim from this repository. The red-team skills under `skills/`
   are Hoplon's own work and are AGPL-3.0-or-later, not part of this component.
+- Upstream revision: none pinned. The vendored directories are not tied to a
+  recorded upstream commit or tag. Re-vendor from the repository when updating,
+  and record the revision here at that point.
 
 ### @veniceai/mcp-server
 
@@ -103,7 +116,7 @@ SOFTWARE.
 
 ### @cortexkit/opencode-magic-context
 
-- Package: `@cortexkit/opencode-magic-context`, version `0.42.2` (npm)
+- Package: `@cortexkit/opencode-magic-context`, version `0.43.1` (npm)
 - Repository: https://github.com/cortexkit/magic-context
 - License: MIT
 - Copyright: Copyright (c) 2025 Ufuk Altinok
@@ -199,6 +212,93 @@ Full texts for these components are in [LICENSES/](LICENSES/).
 
 ---
 
+## Red-team toolchain components
+
+`scripts/toolchain.sh` fetches these during a `--full` install in the QEMU
+guest or the Docker image. Each is downloaded from the URL below at the pinned
+version and is not committed to this repository. The `HOPLON_*_VERSION`
+environment variable overrides each pin.
+
+### Go toolchain
+
+- Component: the Go compiler and standard library (`go`, `gofmt`)
+- Upstream: https://go.dev/dl/
+- Repository: https://github.com/golang/go
+- Version (pinned): `1.24.0` (`HOPLON_GO_VERSION`)
+- License: BSD-3-Clause
+- License file: https://github.com/golang/go/blob/master/LICENSE
+- Redistributed: No. Fetched by `scripts/toolchain.sh` when the distro Go is
+  older than the minimum acceptable minor (default 21).
+
+### Ghidra
+
+- Component: NSA Ghidra software reverse engineering suite
+- Upstream: https://github.com/NationalSecurityAgency/ghidra
+- Version (pinned): `12.1.4` (`HOPLON_GHIDRA_VERSION`)
+- License: Apache-2.0
+- License file: https://github.com/NationalSecurityAgency/ghidra/blob/master/LICENSE
+- Redistributed: No. Fetched by `scripts/toolchain.sh` into `/opt/ghidra`.
+
+### Trivy
+
+- Component: Aqua Trivy vulnerability and misconfiguration scanner
+- Upstream: https://github.com/aquasecurity/trivy
+- Version (pinned): `0.74.0` (`HOPLON_TRIVY_VERSION`)
+- License: Apache-2.0
+- License file: https://github.com/aquasecurity/trivy/blob/main/LICENSE
+- Redistributed: No. Fetched by `scripts/toolchain.sh` into `/usr/local/bin`.
+
+### kubectl
+
+- Component: Kubernetes command-line client (`kubectl`)
+- Upstream: https://github.com/kubernetes/kubernetes
+- Release source: https://dl.k8s.io/release/
+- Version (pinned): `1.31.0` (`HOPLON_KUBECTL_VERSION`)
+- License: Apache-2.0
+- License file: https://github.com/kubernetes/kubernetes/blob/master/LICENSE
+- Redistributed: No. Fetched by `scripts/toolchain.sh` into `/usr/local/bin`.
+
+### jadx
+
+- Component: jadx Dex to Java decompiler
+- Upstream: https://github.com/skylot/jadx
+- Version (pinned): `1.5.6` (`HOPLON_JADX_VERSION`)
+- License: Apache-2.0
+- License file: https://github.com/skylot/jadx/blob/master/LICENSE
+- Redistributed: No. Fetched by `scripts/toolchain.sh` into `/opt/jadx`.
+
+### upx
+
+- Component: UPX executable packer
+- Upstream: https://github.com/upx/upx
+- Version (pinned): `5.2.1` (`HOPLON_UPX_VERSION`)
+- License: `GPL-2.0-or-later`. The upstream license also grants a special
+  exception for compressed executables, which is not a standard SPDX exception
+  identifier, so the SPDX field records only the base license.
+- License file: https://github.com/upx/upx/blob/devel/LICENSE
+- Redistributed: No. Fetched by `scripts/toolchain.sh` into `/usr/local/bin`.
+
+### sliver
+
+- Component: BishopFox Sliver command-and-control framework
+- Upstream: https://github.com/BishopFox/sliver
+- Version (pinned): `1.7.7` (`HOPLON_SLIVER_VERSION`)
+- License: GPL-3.0-only
+- License file: https://github.com/BishopFox/sliver/blob/master/LICENSE
+- Redistributed: No. Fetched by `scripts/toolchain.sh` into `/usr/local/bin`.
+
+### feroxbuster
+
+- Component: feroxbuster content discovery scanner
+- Upstream: https://github.com/epi052/feroxbuster
+- Version (pinned): `2.13.1` (`HOPLON_FEROXBUSTER_VERSION`)
+- License: MIT
+- Copyright: Copyright (c) 2020-2026 epi
+- License file: https://github.com/epi052/feroxbuster/blob/main/LICENSE
+- Redistributed: No. Fetched by `scripts/toolchain.sh` into `/usr/local/bin`.
+
+---
+
 ## Components fetched on first use
 
 For a fully offline copy, vendor the following. None of them are committed to
@@ -207,5 +307,7 @@ this repository.
 - The `opencode` binary, fetched by `scripts/install.sh` (roughly 180 MB).
 - The OMO plugin, fetched by OpenCode or pre-seeded by `scripts/install.sh`.
 - The `npx` and `uvx` MCP servers, all version-pinned as listed above.
+- The red-team toolchain binaries, fetched by `scripts/toolchain.sh --full`
+  (Go, Ghidra, Trivy, kubectl, jadx, upx, sliver, feroxbuster, and the rest).
 - LSP servers, downloaded on first use.
 - OMO's ast-grep runtime, downloaded on first use.

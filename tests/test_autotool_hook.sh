@@ -70,9 +70,12 @@ case "$cmd" in
     if [ "${HOPLON_TEST_FAIL_INSTALL:-0}" = "1" ]; then
       exit 1
     fi
+    if [ "${HOPLON_TEST_NO_BIN:-0}" = "1" ]; then
+      exit 0
+    fi
     {
       printf '#!/usr/bin/env bash\n'
-      printf 'printf "REEXEC:%%s\\n" "%s"\n' "${1:-}"
+      printf 'printf "REEXEC:%%s BUSY:%%s\\n" "%s" "${HOPLON_AUTOTOOL_BUSY:-unset}"\n' "${1:-}"
     } > "$bindir/${1:-}"
     chmod +x "$bindir/${1:-}"
     ;;
@@ -101,6 +104,7 @@ run_case() {
   case "$mode" in
     suggest) envp+=("HOPLON_AUTO_INSTALL=0") ;;
     fail) envp+=("HOPLON_TEST_FAIL_INSTALL=1") ;;
+    nobin) envp+=("HOPLON_TEST_NO_BIN=1") ;;
     busy) envp+=("HOPLON_AUTOTOOL_BUSY=1") ;;
   esac
   set +e
@@ -128,6 +132,7 @@ set -e
 run_case "$A/bin" "$A/calls.log" "$A/out.txt" auto knowncmd alpha beta
 [ "$RUN_RC" -eq 0 ] || fail "the auto-install path exited $RUN_RC: $(cat "$A/out.txt")"
 assert_file_contains "$A/out.txt" 'REEXEC:knowncmd' "the freshly installed command did not run"
+assert_file_contains "$A/out.txt" 'BUSY:unset' "the re-entry guard was still set when the command ran"
 assert_file_contains "$A/out.txt" 'installing knowncmd on demand' "the install was not announced"
 assert_file_contains "$A/calls.log" 'install knowncmd' "a known command did not trigger an install"
 
@@ -154,6 +159,14 @@ run_case "$B/bin" "$B/calls.log" "$B/fail.txt" fail knowncmd
 [ "$RUN_RC" -eq 127 ] || fail "a failed install should exit 127 (got $RUN_RC)"
 assert_file_contains "$B/fail.txt" 'could not install knowncmd' "a failed install gave no message"
 assert_file_contains "$B/calls.log" 'install knowncmd' "a failed install was never attempted"
+
+# An install that exits zero but still leaves the command missing returns 127
+# with a hint, instead of looping on a still-empty PATH.
+: > "$B/calls.log"
+run_case "$B/bin" "$B/calls.log" "$B/nobin.txt" nobin knowncmd
+[ "$RUN_RC" -eq 127 ] || fail "a missing post-install command should exit 127 (got $RUN_RC)"
+assert_file_contains "$B/nobin.txt" 'no knowncmd command appeared' "a missing post-install command gave no hint"
+assert_file_contains "$B/calls.log" 'install knowncmd' "the install was never attempted"
 
 # The re-entry flag short-circuits the handler before it calls hoplon-tool.
 : > "$B/calls.log"
@@ -210,5 +223,82 @@ set -e
 [ "$rc" -eq 0 ] || fail "the end-to-end on-demand path exited $rc: $(cat "$C/out.txt")"
 assert_file_contains "$C/args.log" '--tools=netexec' "the real hoplon-tool did not delegate --tools=netexec"
 assert_file_contains "$C/out.txt" 'RUNNING:nxc' "the hook did not re-exec the installed command"
+
+# End to end aliases: the hook must install the right package and then run the
+# command that package actually ships. Before the alias fix these returned 127
+# because the invoked name never appears as a binary. The stub toolchain maps a
+# requested tool to the binary it ships.
+D="$_tmp/d"
+mkdir -p "$D/repo/scripts" "$D/bin"
+cp "$HOPLON_TEST_REPO/scripts/hoplon-tool" "$D/repo/scripts/hoplon-tool"
+chmod +x "$D/repo/scripts/hoplon-tool"
+cat > "$D/repo/scripts/toolchain.sh" << 'STUB'
+#!/usr/bin/env bash
+case "${1:-}" in
+  --list)
+    printf 'core:\n'
+    printf 'nmap\n'
+    printf 'full:\n'
+    printf 'rizin\n'
+    printf 'theharvester\n'
+    ;;
+  --tools=*)
+    printf '%s\n' "$*" >> "$HOPLON_TEST_LOG"
+    IFS=',' read -r -a names <<< "${1#--tools=}"
+    for n in "${names[@]}"; do
+      case "$n" in
+        netexec) bin=nxc ;;
+        rizin) bin=rizin ;;
+        theharvester) bin=theHarvester ;;
+        nmap) bin=ncat ;;
+        *) bin="$n" ;;
+      esac
+      {
+        printf '#!/usr/bin/env bash\n'
+        printf 'printf "RUNNING:%%s BUSY:%%s\\n" "%s" "${HOPLON_AUTOTOOL_BUSY:-unset}"\n' "$bin"
+      } > "$HOPLON_TEST_BINDIR/$bin"
+      chmod +x "$HOPLON_TEST_BINDIR/$bin"
+    done
+    ;;
+esac
+STUB
+chmod +x "$D/repo/scripts/toolchain.sh"
+
+# A curated PATH keeps the triggered command genuinely missing even when the
+# host has its own copy (for example ncat from nmap). Only the helpers the hook
+# and hoplon-tool need are linked in.
+farm="$D/farm"
+mkdir -p "$farm"
+for _c in env bash readlink dirname basename grep chmod mkdir id sed awk; do
+  _p="$(command -v "$_c" 2> /dev/null || true)"
+  [ -n "$_p" ] && ln -sf "$_p" "$farm/$_c"
+done
+
+run_alias_case() { # invoke expected_tool expected_bin
+  local invoke="$1" expected_tool="$2" expected_bin="$3"
+  rm -rf "${D:?}/bin"
+  mkdir -p "$D/bin"
+  : > "$D/args.log"
+  set +e
+  env "PATH=$D/bin:$D/repo/scripts:$farm" \
+    HOPLON_TOOL_SUDO=0 \
+    HOPLON_TEST_LOG="$D/args.log" \
+    HOPLON_TEST_BINDIR="$D/bin" \
+    bash -c '. "$1"; "$2"' _ "$hook" "$invoke" > "$D/out.txt" 2>&1
+  rc=$?
+  set -e
+  [ "$rc" -eq 0 ] || fail "the $invoke alias path exited $rc: $(cat "$D/out.txt")"
+  assert_file_contains "$D/args.log" "--tools=$expected_tool" \
+    "hoplon-tool did not install $expected_tool for $invoke"
+  assert_file_contains "$D/out.txt" "RUNNING:$expected_bin" \
+    "the hook did not run the resolved $expected_bin for $invoke"
+  assert_file_contains "$D/out.txt" 'BUSY:unset' \
+    "the re-entry guard was still set during the $invoke run"
+  assert_file_lacks "$D/out.txt" 'command not found' "the $invoke run reported a missing command"
+}
+
+run_alias_case radare2 rizin rizin
+run_alias_case theharvester theharvester theHarvester
+run_alias_case ncat nmap ncat
 
 printf 'cloud-init on-demand tool hook ok\n'
