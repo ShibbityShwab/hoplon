@@ -241,10 +241,12 @@ if [ "$HOPLON_ENABLE_OMO" != "0" ] && [ "${HOPLON_OMO_TAKEOVER:-1}" != "0" ]; th
     case "$_d" in "$HOME" | "$HOPLON_HOME" | "$HOPLON_HOME"/*) break ;; esac
     if [ -d "$_d/.omo" ] && [ ! -L "$_d/.omo" ]; then
       if [ -f "$_d/.omo/omo.jsonc" ]; then
-        _conflict="$_d/.omo/omo.jsonc"; break
+        _conflict="$_d/.omo/omo.jsonc"
+        break
       fi
       if [ -f "$_d/.omo/omo.json" ]; then
-        _conflict="$_d/.omo/omo.json"; break
+        _conflict="$_d/.omo/omo.json"
+        break
       fi
     fi
     [ "$_d" = "/" ] && break

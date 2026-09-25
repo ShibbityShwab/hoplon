@@ -15,19 +15,5 @@ updates:
       - dependencies
       - github-actions
 
-  # Python helper scripts live under skills/*/scripts. The wildcard is resolved
-  # by the directories key, which supports globbing. home/ is ignored by
-  # .gitignore and is never scanned.
-  - package-ecosystem: pip
-    directories:
-      - "/skills/*/scripts"
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "deps"
-      include: scope
-    labels:
-      - dependencies
-      - python
+  # Python is intentionally not tracked: the vendored helper scripts are
+  # standard-library only and ship no requirements or pyproject manifest.

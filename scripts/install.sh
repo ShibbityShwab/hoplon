@@ -40,7 +40,8 @@ case "$os" in
   linux) asset="opencode-linux-${arch}.tar.gz" ;;
   darwin) asset="opencode-darwin-${arch}.zip" ;;
   *)
-    printf 'hoplon: unsupported OS: %s\n' "$os" >&2; exit 1
+    printf 'hoplon: unsupported OS: %s\n' "$os" >&2
+    exit 1
     ;;
 esac
 url="https://github.com/${REPO}/releases/download/v${VERSION}/${asset}"

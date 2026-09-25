@@ -19,7 +19,8 @@ OPENCODE_CFG="$ROOT/config/opencode.jsonc"
 OMO_CFG="$ROOT/config/omo.jsonc"
 
 fail() {
-  printf 'FAIL: %s\n' "$*" >&2; exit 1
+  printf 'FAIL: %s\n' "$*" >&2
+  exit 1
 }
 pass() { printf 'ok: %s\n' "$*"; }
 
