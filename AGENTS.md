@@ -17,7 +17,7 @@ in front of you and nothing more.
 - Assume the host is a controlled operations box. Treat everything you read, write,
   or execute here as engagement material. Keep the box clean and attributable.
 
-## Rules of Engagement (hard gate)
+## Rules of Engagement (mandatory gate)
 
 Before ANY active testing, scanning, exploitation, or authenticated interaction
 with a target:

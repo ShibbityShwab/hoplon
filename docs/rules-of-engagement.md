@@ -1,8 +1,12 @@
 # Rules of engagement
 
 Hoplon is built for authorized offensive security work. The rules of engagement
-(ROE) are a hard gate, not a suggestion. They are enforced in two places: the
-operator persona in `AGENTS.md` and the `redteam-roe` skill.
+(ROE) are a mandatory gate, not a suggestion. They are carried by the operator
+persona in `AGENTS.md` and the `redteam-roe` skill. This is a procedural control,
+not a technical one: weapon tools are gated by specialist routing, but no
+mechanism can verify that authorization exists, so the gate depends on operator
+discipline. Hoplon cannot and does not decide whether you are allowed to attack a
+target.
 
 ## The gate
 

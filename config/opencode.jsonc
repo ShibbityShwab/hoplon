@@ -340,6 +340,12 @@
       "enabled": false,
       "timeout": 300000
     },
+    // Supply chain: the nuclei, sqlmap, ffuf, and ghidra servers run locally
+    // built Docker images tagged :latest, and metasploit and bloodhound run
+    // unpinned /opt checkouts. All six are disabled by default. Before enabling
+    // any of them, pin the image by digest (docker inspect --format
+    // '{{index .RepoDigests 0}}') or the checkout by commit, so a moving tag or
+    // a poisoned tree cannot execute as you. See docs/security.md.
     "nuclei": {
       "type": "local",
       "command": ["docker", "run", "-i", "--rm", "nuclei-mcp:latest"],
