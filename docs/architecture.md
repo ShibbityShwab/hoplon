@@ -8,9 +8,9 @@ This page describes how the pieces fit.
 
 | Component | Role | Where |
 | --- | --- | --- |
-| `hoplon` | launcher: isolation, seed, OMO conflict handling, sandbox | repo root |
+| `hoplon` | launcher: isolation, seed, OMO conflict handling | repo root |
 | `scripts/install.sh` | fetch and verify the opencode binary, pre-seed caches | `scripts/` |
-| Isolation backends | Debian QEMU/KVM guest and declarative NixOS guest | `scripts/vm.sh`, `scripts/nix-vm.sh`, `flake.nix` |
+| Isolation backends | Debian QEMU guest and declarative NixOS guest | `scripts/vm.sh`, `scripts/nix-vm.sh`, `flake.nix` |
 | Toolchain | red-team toolbox for the guests | `scripts/toolchain.sh`, `nix/toolchain.nix` |
 | OpenCode | the agent runtime | `bin/opencode` (fetched) |
 | Oh My OpenAgent | agent and category routing, background tasks, team mode | npm plugin |
@@ -38,7 +38,6 @@ This page describes how the pieces fit.
   +-- seed config, themes, agents, tui into isolated home
   +-- seed git identity and login-shell profile
   +-- OMO conflict handling (takeover + restore trap)
-  +-- (sandbox? guard broad targets, then wrap in bwrap with a read-only repo)
   +-- run bin/opencode as a child process (not exec)
 ```
 
@@ -50,11 +49,11 @@ taken-over host config.
 
 The launcher is the state boundary. It isolates `HOME` and all four XDG
 variables, drops host `OPENCODE_*` selectors and host credential variables, and
-seeds config by copy. The default `host` tier shares the host kernel;
-`HOPLON_SANDBOX=1` adds filesystem containment with a read-only repo.
-`HOPLON_ISOLATION=vm` and `nix` hand the whole stack to a guest with its own
-kernel, so the guest boundary replaces the launcher's. See
-[Isolation](isolation.md) and [Sandbox](sandbox.md).
+seeds config by copy. The default `host` tier shares the host kernel.
+`HOPLON_ISOLATION=vm` runs the whole stack in a QEMU guest and `nix` in a
+declarative NixOS guest; each has its own kernel, so the guest boundary replaces
+the launcher's and works on Linux, macOS, and Windows. See
+[Isolation](isolation.md) and [QEMU guest](vm.md).
 
 ## Configuration layers
 

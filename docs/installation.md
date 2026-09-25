@@ -18,9 +18,9 @@ Optional, for the MCP servers that need them:
 - `node` and `npx` for the `venice`, `shodan`, `nmap`, and `pentest` servers
 - `uvx` for the `cve` server
 - `docker` for the `nuclei`, `sqlmap`, `ffuf`, and `ghidra` servers
-- `bwrap` for the sandbox (`HOPLON_SANDBOX=1`)
-- `qemu-system-x86_64`, `qemu-img`, and `xorriso` for the `vm` tier
-- `nix` with flakes and `/dev/kvm` for the `nix` tier
+- `qemu-system-x86_64` (or `qemu-system-aarch64` on arm64 hosts), `qemu-img`,
+  and `xorriso` for the `vm` tier
+- `nix` with flakes and a working QEMU accelerator for the `nix` tier
 
 ## Clone and install
 
@@ -106,9 +106,9 @@ walkthrough.
 ./hoplon doctor
 ```
 
-This reports the opencode version, whether `VENICE_API_KEY` is set, whether
-`bwrap` is available, which MCP runtimes exist, which weapon binaries are
-installed, and whether Venice is reachable. It does not seed or launch.
+This reports the opencode version, whether `VENICE_API_KEY` is set, which MCP
+runtimes exist, which weapon binaries are installed, and whether Venice is
+reachable. It does not seed or launch.
 
 ## Isolation tiers
 
@@ -118,9 +118,12 @@ its own kernel, filesystem, and user:
 
 | Value | What it runs | Requirements | Page |
 | --- | --- | --- | --- |
-| `host` (default) | isolated HOME on this machine, optional bubblewrap sandbox | `bwrap` for the sandbox | [Sandbox](sandbox.md) |
-| `vm` | Debian QEMU/KVM guest provisioned by cloud-init | QEMU, KVM, `xorriso` | [QEMU guest](vm.md) |
-| `nix` | declarative NixOS guest built from pinned Nix inputs | Nix with flakes, KVM | [NixOS guest](nixos-vm.md) |
+| `host` (default) | isolated HOME on this machine, sharing the host kernel | none | [Isolation](isolation.md) |
+| `vm` | Debian QEMU guest provisioned by cloud-init | QEMU, `xorriso`, a working accelerator | [QEMU guest](vm.md) |
+| `nix` | declarative NixOS guest built from pinned Nix inputs | Nix with flakes, a working accelerator | [NixOS guest](nixos-vm.md) |
+
+QEMU selects its accelerator per host: KVM on Linux, HVF on macOS, WHPX or TCG
+on Windows. Override it with `HOPLON_VM_ACCEL` (see [QEMU guest](vm.md)).
 
 The `vm` and `nix` tiers install their own toolchain in the guest; the host
 needs only the tools above to build and boot it.

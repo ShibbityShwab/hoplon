@@ -2,11 +2,11 @@
 # =============================================================================
 # .env is data, not code.
 #
-# The launcher previously sourced .env, so a sandboxed agent that appended
-# HOPLON_X=$(...) to it got host code execution on the next unsandboxed launch.
-# The safe reader must honor NAME=value lines, strip surrounding quotes, and
-# never execute the value; a value that looks like a command substitution must
-# reach the child as literal text, and the process substitution must not run.
+# The launcher previously sourced .env, so a process that appended
+# HOPLON_X=$(...) to it got host code execution on the next launch. The safe
+# reader must honor NAME=value lines, strip surrounding quotes, and never
+# execute the value; a value that looks like a command substitution must reach
+# the child as literal text, and the process substitution must not run.
 # =============================================================================
 set -euo pipefail
 

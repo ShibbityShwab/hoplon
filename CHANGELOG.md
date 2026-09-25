@@ -12,15 +12,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Isolation tiers.** `HOPLON_ISOLATION=host|vm|nix` selects where the stack
   runs: the isolated home on this machine, a Debian QEMU/KVM guest, or a
   declarative NixOS guest. The launcher hands off to the matching backend.
-- **Debian QEMU/KVM guest.** `scripts/vm.sh` creates, boots, and destroys a
-  Debian cloud-image guest provisioned by cloud-init. `HOPLON_VM_TOOLS` and the
-  VM knobs are documented in `docs/vm.md`.
+- **Debian QEMU guest.** `scripts/vm.sh` creates, boots, and destroys a Debian
+  cloud-image guest provisioned by cloud-init, on Linux (KVM), macOS (HVF), and
+  Windows (WHPX or TCG). `HOPLON_VM_TOOLS`, `HOPLON_VM_ACCEL`, and the VM knobs
+  are documented in `docs/vm.md`.
 - **NixOS guest.** `flake.nix` emits a bootable VM (`nix run .#vm`) and a qcow2
   image (`nix build .#qcow2`) from pinned Nix inputs; `scripts/nix-vm.sh` wraps
   both.
 - **Shared toolchain installer.** `scripts/toolchain.sh` provisions the
   red-team toolbox on Debian and Ubuntu, used by the QEMU guest. The NixOS guest
   pins the same toolset in `nix/toolchain.nix`.
+
+### Removed
+
+- **The host sandbox.** The optional per-OS host sandbox and its knobs are gone.
+  Hoplon now ships one cross-platform isolation model: the QEMU virtual machine,
+  selected with `HOPLON_ISOLATION=vm`, which runs on Linux (KVM), macOS (HVF),
+  and Windows (WHPX or TCG). Host-tier isolation is unchanged: the launcher
+  still isolates `HOME`, all four XDG variables, credentials, and config.
 
 ## [1.0.0] - 2026-09-25
 
@@ -42,13 +51,9 @@ harness.
 - **OMO harness, optional.** The Oh My OpenAgent plugin supplies agent and
   category routing, background tasks, and team mode. It is loaded as a plugin,
   not required by the launcher, so the distribution still runs without it.
-- **Bubblewrap sandbox.** `HOPLON_SANDBOX=1` wraps opencode in `bubblewrap`,
-  hiding the host filesystem except this repository and the target directory,
-  keeping the network for the Venice API, and running in its own user, pid, ipc,
-  and uts namespaces. `HOPLON_SANDBOX_BINS=1` mounts host user binaries.
 - **`hoplon doctor`.** Reports the opencode version, whether `VENICE_API_KEY` is
-  set, whether `bwrap` is available, which MCP runtimes exist, which weapon
-  binaries are installed, and whether Venice is reachable.
+  set, which MCP runtimes exist, which weapon binaries are installed, and
+  whether Venice is reachable.
 - **Magic Context.** Long-session context management is handled by
   `@cortexkit/opencode-magic-context@0.43.1`, with OMO's own preemptive
   compaction hook disabled so two systems do not compact at once.

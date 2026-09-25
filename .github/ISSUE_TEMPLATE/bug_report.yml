@@ -44,7 +44,7 @@ body:
     attributes:
       label: Environment
       description: Relevant versions, for example the output of `./hoplon doctor`.
-      placeholder: "opencode 1.18.25, bash 5.2, bwrap 0.9"
+      placeholder: "opencode 1.18.25, bash 5.2, qemu 9.2"
     validations:
       required: false
   - type: textarea

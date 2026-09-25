@@ -20,8 +20,8 @@ Hoplon is an OpenCode distribution for authorized offensive security work. It ru
 | --- | --- |
 | **Venice only, uncensored** | `provider.venice.whitelist` allows exactly seven uncensored models. The allowlist is enforced, not a suggestion. |
 | **Portable and isolated** | Its own `HOME` and all four XDG dirs live under `./home`. No host OpenCode or OMO state is read or written, except a host OMO config that would override the routing, which is taken over for the session and restored on exit. |
-| **Sandbox mode** | `HOPLON_SANDBOX=1` wraps the runtime in bubblewrap: the repo is read-only, host credentials and container sockets are hidden, and the network stays up for the API. |
-| **Isolation tiers** | `HOPLON_ISOLATION=host` (default) isolates state on this machine; `vm` boots a Debian QEMU/KVM guest; `nix` boots a declarative NixOS guest. Each guest has its own kernel, so nothing reaches the host OS. |
+| **Cross-platform VM** | `HOPLON_ISOLATION=vm` runs the whole stack inside a QEMU guest with its own kernel on Linux, macOS, and Windows. One isolation model, no per-OS sandbox. |
+| **Isolation tiers** | `HOPLON_ISOLATION=host` (default) isolates state on this machine; `vm` boots a Debian QEMU guest; `nix` boots a declarative NixOS guest. Each guest has its own kernel, so nothing reaches the host OS. |
 | **ROE-gated specialists** | Six red-team subagents and five offense skills, gated by a mandatory `redteam-roe` skill. |
 | **Pinned MCP tooling** | Venice's official MCP server is enabled by default; every `npx` and `uvx` server is version-pinned. |
 | **Reproducible** | A shell test suite and CI cover the config, the launcher, and the no-dash rule. |
@@ -69,8 +69,7 @@ environment:
 | --- | --- |
 | `HOPLON_ISOLATION=host\|vm\|nix` | where the stack runs: this machine, a Debian QEMU/KVM guest, or a declarative NixOS guest |
 | `HOPLON_ENABLE_OMO=0` | run plain OpenCode; drops the OMO plugin and its takeover |
-| `HOPLON_SANDBOX=1` | wrap the runtime in bubblewrap with a read-only repo and no host credentials or container sockets |
-| `HOPLON_SANDBOX_ALLOW_BROAD=1` | allow a sandbox target of `/`, the host home, or an ancestor of it, bound read-write |
+| `HOPLON_VM_ACCEL=kvm\|hvf\|whpx\|tcg` | force the QEMU accelerator instead of auto-detecting it per host |
 | `HOPLON_OMO_TAKEOVER=0` | leave a conflicting host `~/.omo/omo.jsonc` alone and let it win |
 | `HOPLON_BIN_DIR` | where `scripts/install.sh` links the `hoplon` command |
 | `HOPLON_OPENCODE_VERSION` | opencode release to fetch; `latest` tracks the newest |
@@ -94,8 +93,8 @@ environment:
 | **Launcher** | The `hoplon` command isolates `HOME` and XDG, drops host credential variables, seeds config, and handles the OMO host-config conflict. |
 | **Harness** | Oh My OpenAgent (OMO) supplies agent and category routing, background tasks, and team mode. Optional; see below. |
 | **Models** | Seven allowlisted Venice uncensored models, routed per agent and category. |
-| **Sandbox** | Optional bubblewrap containment via `HOPLON_SANDBOX=1`: read-only repo, no host credentials or container sockets. |
-| **Isolation tiers** | `host` (isolated state), `vm` (Debian QEMU/KVM guest), or `nix` (declarative NixOS guest). The guests have their own kernel. |
+| **VM** | The QEMU guest (`HOPLON_ISOLATION=vm`): its own kernel, filesystem, and user. Runs on Linux, macOS, and Windows. |
+| **Isolation tiers** | `host` (isolated state), `vm` (Debian QEMU guest), or `nix` (declarative NixOS guest). The guests have their own kernel. |
 | **Skills** | Five red-team skills plus 20 vendored Venice API skills. |
 | **MCP** | Venice's MCP server on by default; recon and weapon servers present but off until enabled. |
 
@@ -104,7 +103,6 @@ environment:
 - [Docs site](https://shibbityshwab.github.io/hoplon/)
 - [Getting started](docs/getting-started.md)
 - [Installation](docs/installation.md)
-- [Sandbox](docs/sandbox.md)
 - [Isolation](docs/isolation.md)
 - [QEMU guest](docs/vm.md)
 - [NixOS guest](docs/nixos-vm.md)

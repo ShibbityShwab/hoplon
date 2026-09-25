@@ -33,7 +33,7 @@
 #
 # HOPLON_ISOLATION selects where the stack runs:
 #   host        (default) run on this machine, as described above
-#   vm          run inside a QEMU/KVM guest (scripts/vm.sh)
+#   vm          run inside a QEMU guest (scripts/vm.sh), on any OS
 #   nix         boot the declarative NixOS guest (scripts/nix-vm.sh, flake.nix)
 # =============================================================================
 set -euo pipefail
@@ -68,13 +68,12 @@ export HOPLON_HOST_HOME
 # ---------------------------------------------------------------------------
 # Local environment: VENICE_API_KEY, MCP keys, passthrough flags.
 #
-# Read .env as data, never as code. Defense in depth: the sandbox now mounts
-# this repo read-only, but any process that can write the checkout (an agent
-# run unsandboxed, or a misconfigured bind) could otherwise append a command
-# substitution and get host code execution on the next launch. Only NAME=value
-# lines at column 0 are honored; surrounding single or double quotes are
-# stripped; the value is exported verbatim. Command substitution, backticks,
-# and arithmetic never run.
+# Read .env as data, never as code. Any process that can write the checkout
+# (the agent itself, or anything else with access to the tree) could otherwise
+# append a command substitution and get host code execution on the next launch.
+# Only NAME=value lines at column 0 are honored; surrounding single or double
+# quotes are stripped; the value is exported verbatim. Command substitution,
+# backticks, and arithmetic never run.
 # ---------------------------------------------------------------------------
 _hoplon_load_env() {
   [ -f "$1" ] && [ -r "$1" ] || return 0
@@ -127,8 +126,8 @@ unset OPENCODE_CONFIG OPENCODE_CONFIG_DIR OPENCODE_CONFIG_CONTENT \
 # Drop host credential, agent, and container-runtime selectors. The isolated
 # HOME hides credential files, but an inherited env var would still carry the
 # same access into the child: an SSH/GPG agent socket, cloud API keys, or a
-# docker endpoint that bypasses the sandbox. XDG_RUNTIME_DIR and TMPDIR are
-# reset into the isolated home so nothing points back at host state.
+# docker endpoint that bypasses the isolated home. XDG_RUNTIME_DIR and TMPDIR
+# are reset into the isolated home so nothing points back at host state.
 # ---------------------------------------------------------------------------
 unset SSH_AUTH_SOCK SSH_AGENT_PID SSH_ASKPASS GIT_ASKPASS GPG_AGENT_INFO \
   KRB5CCNAME KRB5_CONFIG GITHUB_TOKEN GH_TOKEN \
@@ -183,7 +182,6 @@ _hoplon_doctor() {
   printf '  repo                %s\n' "$HOPLON_HOME"
   printf '  opencode            %s\n' "$([ -x "$HOPLON_HOME/bin/opencode" ] && "$HOPLON_HOME/bin/opencode" --version 2> /dev/null || echo missing)"
   printf '  VENICE_API_KEY      %s\n' "$([ -n "${VENICE_API_KEY:-}" ] && echo set || echo MISSING)"
-  printf '  bwrap (sandbox)     %s\n' "$(_hoplon_have bwrap)"
   printf '  node / npx          %s / %s\n' "$(_hoplon_have node)" "$(_hoplon_have npx)"
   printf '  uvx (python MCP)    %s\n' "$(_hoplon_have uvx)"
   printf '  docker (docker MCP) %s\n' "$(_hoplon_have docker)"
@@ -435,77 +433,8 @@ fi
 # Launch. Do not exec: the EXIT trap must run so a taken-over host config is
 # restored when opencode exits.
 #
-# Optional bubblewrap sandbox (HOPLON_SANDBOX=1). The host filesystem is hidden
-# except the repo (read-only), the isolated state home (read-write), and the
-# target directory, while the network stays up for the Venice API. Raw-socket
-# tooling (nmap -sS, ARP, packet capture) needs CAP_NET_RAW and will not work
-# inside; run those unsandboxed.
+# The host tier isolates state (HOME, XDG, credentials), not the filesystem or
+# the kernel. For a real containment boundary use the QEMU guest:
+#   HOPLON_ISOLATION=vm ./hoplon
 # ---------------------------------------------------------------------------
-if [ "${HOPLON_SANDBOX:-0}" != "0" ]; then
-  if command -v bwrap > /dev/null 2>&1; then
-    # /run is emptied because a host /run exposes /run/docker.sock (plus the
-    # containerd, podman, and dbus sockets and /run/user keyrings): a container
-    # escape straight to host root. Re-expose only the resolver runtime dirs
-    # that /etc/resolv.conf may symlink into.
-    _hoplon_sb=(bwrap --die-with-parent
-      --unshare-user --unshare-pid --unshare-ipc --unshare-uts
-      --ro-bind /usr /usr --ro-bind-try /bin /bin --ro-bind-try /lib /lib
-      --ro-bind-try /lib64 /lib64 --ro-bind-try /sbin /sbin
-      --ro-bind /etc /etc --ro-bind-try /opt /opt
-      --proc /proc --dev /dev --tmpfs /run --tmpfs /tmp
-      --ro-bind-try /run/systemd/resolve /run/systemd/resolve)
-    if [ -d /run/NetworkManager ]; then
-      _hoplon_sb+=(--ro-bind /run/NetworkManager /run/NetworkManager)
-    fi
-    # The repo is the source of truth, so mount it read-only and reopen only
-    # the state home read-write. A writable repo would let a sandboxed agent
-    # poison .env, config, or bin/opencode for the next unsandboxed launch.
-    _hoplon_sb+=(--ro-bind "$HOPLON_HOME" "$HOPLON_HOME"
-      --bind "$HOPLON_HOME/home" "$HOPLON_HOME/home")
-    # Refuse to expose the whole host: launching from /, the host home, or an
-    # ancestor of it would hand the agent every file under that root.
-    _hoplon_pwd="$(pwd -P 2> /dev/null || printf '%s' "$PWD")"
-    _hoplon_broad=""
-    case "$_hoplon_pwd" in /) _hoplon_broad="/" ;; esac
-    if [ -n "${HOPLON_HOST_HOME:-}" ]; then
-      if [ "$_hoplon_pwd" = "$HOPLON_HOST_HOME" ]; then
-        _hoplon_broad="the host home ($HOPLON_HOST_HOME)"
-      elif [ -z "$_hoplon_broad" ]; then
-        case "$HOPLON_HOST_HOME" in
-          "$_hoplon_pwd"/*) _hoplon_broad="an ancestor of the host home ($HOPLON_HOST_HOME)" ;;
-        esac
-      fi
-    fi
-    case "$PWD" in
-      "$HOPLON_HOME" | "$HOPLON_HOME"/*) : ;;
-      *)
-        if [ -n "$_hoplon_broad" ]; then
-          if [ "${HOPLON_SANDBOX_ALLOW_BROAD:-0}" = "1" ]; then
-            printf 'hoplon: WARNING: sandbox target %s is %s; exposing the whole tree read-write because HOPLON_SANDBOX_ALLOW_BROAD=1.\n' "$_hoplon_pwd" "$_hoplon_broad" >&2
-          else
-            printf 'hoplon: refusing to sandbox %s: it is %s. Launch from a project directory, or set HOPLON_SANDBOX_ALLOW_BROAD=1 to override.\n' "$_hoplon_pwd" "$_hoplon_broad" >&2
-            exit 1
-          fi
-        fi
-        _hoplon_sb+=(--bind "$PWD" "$PWD")
-        ;;
-    esac
-    unset _hoplon_pwd _hoplon_broad 2> /dev/null || true
-    # The host home is hidden, so tools installed per-user (pipx, cargo, go,
-    # bun) would be missing. HOPLON_SANDBOX_BINS=1 exposes those bin dirs
-    # read-only. Everything in /usr is already available without this.
-    if [ "${HOPLON_SANDBOX_BINS:-0}" = "1" ]; then
-      for _b in .local/bin .bun/bin .cargo/bin go/bin; do
-        [ -d "$HOPLON_HOST_HOME/$_b" ] && _hoplon_sb+=(--ro-bind "$HOPLON_HOST_HOME/$_b" "$HOPLON_HOST_HOME/$_b")
-      done
-    fi
-    _hoplon_sb+=(--chdir "$PWD" "$HOPLON_HOME/bin/opencode")
-    printf 'hoplon: sandbox on (bwrap); host FS hidden except repo %s (read-only) and %s\n' "$HOPLON_HOME" "$PWD" >&2
-    "${_hoplon_sb[@]}" "$@"
-  else
-    printf 'hoplon: HOPLON_SANDBOX=1 but bwrap is missing; running unsandboxed\n' >&2
-    "$HOPLON_HOME/bin/opencode" "$@"
-  fi
-else
-  "$HOPLON_HOME/bin/opencode" "$@"
-fi
+"$HOPLON_HOME/bin/opencode" "$@"

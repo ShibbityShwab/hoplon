@@ -4,8 +4,8 @@
 #
 # An isolated HOME hides credential files, but inherited env vars still carry
 # access into the child: an SSH agent socket, cloud keys, or a docker endpoint
-# that bypasses the sandbox. The launcher must clear that set and repoint the
-# runtime dirs into the isolated home, while leaving ordinary vars intact.
+# that bypasses the isolated home. The launcher must clear that set and repoint
+# the runtime dirs into the isolated home, while leaving ordinary vars intact.
 # =============================================================================
 set -euo pipefail
 

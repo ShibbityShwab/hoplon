@@ -34,9 +34,10 @@ the model must be one Venice tags uncensored if you want the no-filter property.
 ## Why is the API key still readable by the agent?
 
 Read prompts for `.env`, but bash is allowed, so the agent can reach the key with
-`cat .env`. The sandbox mounts the repo read-only, so the key stays readable but
-cannot be changed there. Treat the key as exposed to the model. Scope the key and
-run engagements on a disposable box. See [Security](security.md).
+`cat .env`. Inside the QEMU guest (`HOPLON_ISOLATION=vm`) the key lives only in
+the guest, but the model can still read it there. Treat the key as exposed to the
+model. Scope the key and run engagements on a disposable box. See
+[Security](security.md).
 
 ## Why are the weapon MCP servers disabled?
 
@@ -69,18 +70,19 @@ exit. See [Isolation](isolation.md).
 Yes. Set `HOPLON_ENABLE_OMO=0`. You lose OMO routing, background tasks, and team
 mode. See [OMO](omo.md).
 
-## Is the sandbox on by default?
+## Is there a filesystem sandbox?
 
-No. Set `HOPLON_SANDBOX=1`. It requires `bwrap`. The permission rules are a text
-denylist, not a containment boundary, so the sandbox or a guest tier is the real
-boundary. See [Sandbox](sandbox.md).
+No. There is one isolation model: the QEMU virtual machine. The launcher isolates
+state (`HOME`, XDG, credentials) but shares the host kernel, and the permission
+rules are a text denylist, not a containment boundary. For a real boundary, run
+the whole stack in the guest with `HOPLON_ISOLATION=vm`. See
+[Isolation](isolation.md) and [QEMU guest](vm.md).
 
-## Can the agent modify Hoplon or the repo from inside the sandbox?
+## Can the agent modify Hoplon or the repo?
 
-No. The repo is mounted read-only, so the launcher, `scripts/`, `config/`,
-`bin/`, and `.env` cannot be changed. Only the isolated home and the target
-directory are writable. Unsandboxed, the agent can edit the repo. See
-[Sandbox](sandbox.md).
+On the host tier, yes: the agent can edit the launcher, `scripts/`, `config/`,
+`bin/`, and `.env`. In the `vm` or `nix` guest it can only edit the copy inside
+the guest, and the host tree is not reachable. See [QEMU guest](vm.md).
 
 ## Can I run it in a VM?
 
@@ -88,10 +90,12 @@ Yes. `HOPLON_ISOLATION=vm` boots a Debian QEMU/KVM guest, and
 `HOPLON_ISOLATION=nix` boots a declarative NixOS guest. Both have their own
 kernel, filesystem, and user. See [Isolation](isolation.md).
 
-## Why does `nmap -sS` fail in the sandbox?
+## Does `nmap -sS` work?
 
-Raw-socket tooling needs `CAP_NET_RAW`, which the sandbox does not grant. Run
-raw-socket work unsandboxed with `HOPLON_SANDBOX=0`.
+Yes. On the host tier the launcher runs with your account's privileges; give it
+the capability it needs (`sudo` or a root shell). Inside the `vm` guest,
+raw-socket work runs in the guest with the guest's privileges. See
+[QEMU guest](vm.md).
 
 ## How do I update?
 

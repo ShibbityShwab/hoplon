@@ -39,10 +39,10 @@
   <polyline points="855,350 905,350 905,290 932,290" fill="none" stroke="#9c7a38" stroke-width="2" marker-end="url(#arrow)"/>
   <polyline points="855,350 905,350 905,410 932,410" fill="none" stroke="#9c7a38" stroke-width="2" marker-end="url(#arrow)"/>
 
-  <!-- bubblewrap sandbox wrapping opencode -->
+  <!-- QEMU guest boundary wrapping opencode -->
   <rect x="600" y="225" width="300" height="250" rx="14"
         fill="none" stroke="#9c7a38" stroke-width="1.5" stroke-dasharray="7 7"/>
-  <text x="606" y="213" fill="#e3b25c" font-size="12.5">bubblewrap sandbox (HOPLON_SANDBOX=1)</text>
+  <text x="606" y="213" fill="#e3b25c" font-size="12.5">QEMU guest (HOPLON_ISOLATION=vm)</text>
 
   <!-- node: hoplon launcher -->
   <rect x="60" y="295" width="200" height="110" rx="10" fill="url(#nodeTop)" stroke="#3a3128" stroke-width="1.5"/>
@@ -58,7 +58,7 @@
   <text x="346" y="360" fill="#9a9080" font-size="12.5">(./home)</text>
   <text x="346" y="382" fill="#8b8172" font-size="12.5">config, skills, state</text>
 
-  <!-- node: opencode (inside sandbox) -->
+  <!-- node: opencode -->
   <rect x="645" y="295" width="210" height="110" rx="10" fill="url(#nodeTop)" stroke="#c9973f" stroke-width="1.5"/>
   <rect x="661" y="317" width="10" height="10" fill="#c9973f"/>
   <text x="681" y="327" fill="#e6ded0" font-size="17" font-weight="bold">opencode 1.18.25</text>

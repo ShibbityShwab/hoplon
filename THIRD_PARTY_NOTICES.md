@@ -32,7 +32,6 @@ A note on the two categories that are easy to get wrong:
 | mcp-nmap-server | 1.0.1 | MIT | No, fetched by `npx` | inline below |
 | cve-mcp-server | 0.5.0 | MIT | No, fetched by `uvx` | inline below |
 | pentest-mcp | 0.9.0 | GPL-3.0-or-later | No, fetched by `npx` | LICENSES/GPL-3.0-or-later.txt |
-| bubblewrap | host-provided | LGPL-2.1-or-later | No, invoked only | LICENSES/LGPL-2.1-or-later.txt |
 | oh-my-openagent | 5.0.0-beta.62 | SUL-1.0 | No, fetched at runtime | LICENSES/SUL-1.0.txt |
 
 ---
@@ -176,16 +175,6 @@ Full texts for these components are in [LICENSES/](LICENSES/).
   metadata is the authoritative declaration for the version Hoplon pins, so
   GPL-3.0-or-later is recorded here. If you move to a different version,
   re-check the license.
-
-### bubblewrap
-
-- Program: `bwrap` (bubblewrap)
-- Repository: https://github.com/containers/bubblewrap
-- License: LGPL-2.1-or-later (SPDX: `LGPL-2.1-or-later`)
-- Full text: [LICENSES/LGPL-2.1-or-later.txt](LICENSES/LGPL-2.1-or-later.txt)
-- Redistributed: No. bubblewrap is a host program that Hoplon invokes when
-  `HOPLON_SANDBOX=1` is set. No bubblewrap source or binary is bundled in this
-  repository. Install it through your distribution's package manager.
 
 ### oh-my-openagent
 

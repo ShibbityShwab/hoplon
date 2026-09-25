@@ -56,8 +56,8 @@ This is a volunteer project, so the timeline is a target, not a contract.
 In scope for this policy:
 
 - The launcher (`hoplon`) and its isolation model: `HOME` and XDG isolation,
-  environment scrubbing, the OMO config takeover and restore, and the sandbox
-  wrapper.
+  environment scrubbing, the OMO config takeover and restore, and the
+  `HOPLON_ISOLATION` delegation to the QEMU guest.
 - The isolation backends: `scripts/vm.sh`, `scripts/nix-vm.sh`, `flake.nix` and
   the NixOS guest configuration, and `scripts/toolchain.sh`.
 - `scripts/install.sh`: download, checksum verification, and install-by-rename.
@@ -75,7 +75,7 @@ Out of scope:
 - The behavior of third-party weapon tooling (`nmap`, `sqlite`, `metasploit`,
   and the rest) that Hoplon can invoke.
 - Findings that require an already-compromised host or an operator who has
-  disabled the sandbox and the ROE gate.
+  disabled the VM tier and the ROE gate.
 
 ### Offensive tooling and authorization
 
@@ -90,7 +90,7 @@ criminal and civil liability. The operator is solely responsible for staying
 inside scope and for complying with all applicable laws.
 
 Reports that amount to "the tool can attack things" are out of scope. Reports
-that the ROE gate can be bypassed, that the sandbox can be escaped, or that
+that the ROE gate can be bypassed, that the VM boundary can be escaped, or that
 isolation leaks host state are in scope and welcome.
 
 ## No warranty
@@ -105,7 +105,6 @@ See the license for the full terms.
 
 The [Security page](docs/security.md) documents the current mitigations and
 their limits. In short: run engagements on a disposable box, use
-`HOPLON_SANDBOX=1` when handling untrusted content, step up to
-`HOPLON_ISOLATION=vm` or `nix` when you need a kernel boundary, treat
-`VENICE_API_KEY` as exposed to the model because bash is allowed, and keep the
-key scoped.
+`HOPLON_ISOLATION=vm` when handling untrusted content (the QEMU guest is the
+kernel boundary), treat `VENICE_API_KEY` as exposed to the model because bash is
+allowed, and keep the key scoped.

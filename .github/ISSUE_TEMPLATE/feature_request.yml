@@ -39,7 +39,7 @@ body:
       label: Area
       options:
         - Launcher and isolation
-        - Sandbox
+        - QEMU VM guest
         - Agents and skills
         - Configuration
         - Documentation

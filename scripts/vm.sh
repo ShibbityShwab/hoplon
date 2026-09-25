@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Hoplon QEMU/KVM VM backend.
+# Hoplon QEMU VM backend.
 #
 # Runs Hoplon inside a Debian bookworm cloud image with its own kernel, fully
 # separated from the host. State lives under $HOPLON_HOME/vm: the qcow2 disk,
 # the NoCloud seed ISO, the pid file, the serial log, and the SSH key.
 #
+# QEMU is the one virtualization layer present on every supported host, so this
+# backend runs on Linux (KVM), macOS on Intel and Apple Silicon (HVF), and
+# Windows through WSL2 (KVM) or QEMU's WHPX/TCG accelerators.
+#
 # Usage:
 #   vm.sh create [--force]   download the base image, copy and resize disk.qcow2,
 #                            render vm/cloud-init into seed.iso
-#   vm.sh start              boot the VM under KVM
+#   vm.sh start              boot the VM (hardware or software acceleration)
 #   vm.sh stop               power the VM off (SIGTERM, then SIGKILL)
 #   vm.sh status             show VM state
 #   vm.sh ssh [-- cmd...]    wait for sshd, then open an SSH session
@@ -33,7 +37,11 @@
 #   HOPLON_VM_SHARE_ALLOW  set 1 to share a directory inside HOPLON_HOME; by
 #                          default such a share is refused because it exposes
 #                          .env and the repo's home/ and vm/ state to the guest
-#   HOPLON_VM_IMAGE_URL    base qcow2 URL (default Debian bookworm genericcloud)
+#   HOPLON_VM_ACCEL        QEMU accelerator: kvm | hvf | whpx | tcg. Defaults to
+#                          kvm on Linux with a usable /dev/kvm, hvf on macOS,
+#                          whpx on Windows, else tcg (slow software emulation)
+#   HOPLON_VM_IMAGE_URL    base qcow2 URL (default Debian bookworm genericcloud
+#                          for the host architecture: amd64 or arm64)
 # =============================================================================
 set -euo pipefail
 
@@ -74,7 +82,14 @@ VM_SSH_TIMEOUT="${HOPLON_VM_SSH_TIMEOUT:-300}"
 VM_SHARE="${HOPLON_VM_SHARE:-}"
 VM_SHARE_TAG="${HOPLON_VM_SHARE_TAG:-engagements}"
 HOPLON_REPO_URL="${HOPLON_REPO_URL:-https://github.com/ShibbityShwab/hoplon}"
-IMAGE_URL="${HOPLON_VM_IMAGE_URL:-https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2}"
+
+# QEMU binary, base image, accelerator, and CPU, resolved per host by
+# resolve_host_arch and resolve_accel. HOPLON_VM_IMAGE_URL and HOPLON_VM_ACCEL
+# override the automatic choice.
+QEMU_BIN=""
+IMAGE_URL=""
+VM_ACCEL=""
+VM_CPU=""
 
 # SSH key material resolved by resolve_ssh_key.
 SSH_KEY=""
@@ -91,9 +106,84 @@ need_cmd() {
   command -v "$1" > /dev/null 2>&1 || die "missing required command: $1"
 }
 
-check_kvm() {
-  [ -e /dev/kvm ] || die "/dev/kvm is absent; KVM acceleration is unavailable"
-  [ -r /dev/kvm ] && [ -w /dev/kvm ] || die "/dev/kvm is not writable by $(id -un)"
+# Host architecture selects the QEMU system emulator and the Debian cloud image.
+# arm64 hosts (Apple Silicon, Linux arm64) use qemu-system-aarch64 and the arm64
+# image; x86_64 hosts use qemu-system-x86_64 and the amd64 image. The arm64
+# guest also needs UEFI firmware from the host's QEMU install. HOPLON_VM_IMAGE_URL
+# overrides the image.
+resolve_host_arch() {
+  local host_arch
+  host_arch="$(uname -m)"
+  case "$host_arch" in
+    arm64 | aarch64)
+      QEMU_BIN="qemu-system-aarch64"
+      IMAGE_URL="${HOPLON_VM_IMAGE_URL:-https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-arm64.qcow2}"
+      ;;
+    x86_64 | amd64)
+      QEMU_BIN="qemu-system-x86_64"
+      IMAGE_URL="${HOPLON_VM_IMAGE_URL:-https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2}"
+      ;;
+    *)
+      die "unsupported host architecture: $host_arch (need x86_64 or arm64)"
+      ;;
+  esac
+}
+
+# Resolve the accelerator and the matching -cpu value. HOPLON_VM_ACCEL wins;
+# otherwise pick the native accelerator for this host, falling back to tcg
+# software emulation when none is usable. Sets VM_ACCEL and VM_CPU.
+resolve_accel() {
+  if [ -n "${HOPLON_VM_ACCEL:-}" ]; then
+    VM_ACCEL="$HOPLON_VM_ACCEL"
+  else
+    case "$(uname -s)" in
+      Linux)
+        if [ -e /dev/kvm ] && [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+          VM_ACCEL="kvm"
+        else
+          VM_ACCEL="tcg"
+        fi
+        ;;
+      Darwin) VM_ACCEL="hvf" ;;
+      MSYS* | MINGW* | CYGWIN*) VM_ACCEL="whpx" ;;
+      *) VM_ACCEL="tcg" ;;
+    esac
+  fi
+
+  case "$VM_ACCEL" in
+    kvm | hvf) VM_CPU="host" ;;
+    whpx | tcg) VM_CPU="max" ;;
+    *) VM_CPU="max" ;;
+  esac
+}
+
+# Verify the resolved accelerator. An explicitly requested accelerator that is
+# unavailable is fatal; the automatic tcg fallback never is, it only warns that
+# emulation is slow.
+check_accel() {
+  case "$VM_ACCEL" in
+    kvm)
+      [ -e /dev/kvm ] || die "HOPLON_VM_ACCEL=kvm but /dev/kvm is absent"
+      if [ ! -r /dev/kvm ] || [ ! -w /dev/kvm ]; then
+        die "HOPLON_VM_ACCEL=kvm but /dev/kvm is not writable by $(id -un)"
+      fi
+      ;;
+    hvf)
+      [ "$(uname -s)" = "Darwin" ] || die "HOPLON_VM_ACCEL=hvf requires macOS (Darwin)"
+      ;;
+    whpx)
+      case "$(uname -s)" in
+        MSYS* | MINGW* | CYGWIN*) ;;
+        *) die "HOPLON_VM_ACCEL=whpx requires Windows (MSYS/MINGW/Cygwin)" ;;
+      esac
+      ;;
+    tcg)
+      warn "using tcg software emulation; the guest will be slow (set HOPLON_VM_ACCEL or enable a hardware accelerator)"
+      ;;
+    *)
+      die "HOPLON_VM_ACCEL must be kvm, hvf, whpx, or tcg (got: '$VM_ACCEL')"
+      ;;
+  esac
 }
 
 # Reject a value unless it is a non-negative decimal integer.
@@ -350,7 +440,7 @@ cmd_create() {
 
   need_cmd curl
   need_cmd qemu-img
-  need_cmd qemu-system-x86_64
+  need_cmd "$QEMU_BIN"
   need_cmd xorriso
   need_cmd ssh-keygen
 
@@ -392,8 +482,9 @@ cmd_create() {
 }
 
 cmd_start() {
-  need_cmd qemu-system-x86_64
-  check_kvm
+  resolve_accel
+  check_accel
+  need_cmd "$QEMU_BIN"
   [ -f "$DISK" ] || die "no disk found; run: $0 create"
   [ -f "$SEED_ISO" ] || die "no seed ISO found; run: $0 create"
   if vm_running; then
@@ -402,10 +493,10 @@ cmd_start() {
 
   local -a qemu
   qemu=(
-    qemu-system-x86_64
+    "$QEMU_BIN"
     -name hoplon-vm
-    -accel kvm
-    -cpu host
+    -accel "$VM_ACCEL"
+    -cpu "$VM_CPU"
     -smp "$VM_CPUS"
     -m "$VM_RAM"
     -drive "file=$DISK,if=virtio,format=qcow2"
@@ -423,7 +514,7 @@ cmd_start() {
   fi
 
   : > "$LOG_FILE"
-  log "booting VM (cpus=$VM_CPUS ram=${VM_RAM}MiB ssh=127.0.0.1:$VM_SSH_PORT)"
+  log "booting VM (accel=$VM_ACCEL cpu=$VM_CPU cpus=$VM_CPUS ram=${VM_RAM}MiB ssh=127.0.0.1:$VM_SSH_PORT)"
   "${qemu[@]}"
   sleep 1
   if vm_running; then
@@ -462,6 +553,8 @@ cmd_stop() {
 }
 
 cmd_status() {
+  resolve_accel
+  check_accel
   local state
   if vm_running; then
     state="running (pid $(vm_pid))"
@@ -472,6 +565,8 @@ cmd_status() {
   printf '  state dir     %s\n' "$VM_DIR"
   printf '  config        tools=%s cpus=%s ram=%sMiB disk=%s port=%s\n' \
     "$VM_TOOLS" "$VM_CPUS" "$VM_RAM" "$VM_DISK" "$VM_SSH_PORT"
+  printf '  accelerator   %s (cpu %s, %s)\n' "$VM_ACCEL" "$VM_CPU" "$QEMU_BIN"
+  printf '  image         %s\n' "$IMAGE_URL"
 
   if [ -f "$DISK" ]; then
     printf '  disk          %s\n' "$DISK"
@@ -564,12 +659,12 @@ cmd_destroy() {
 
 cmd_help() {
   cat << 'EOF'
-Hoplon QEMU/KVM VM backend.
+Hoplon QEMU VM backend.
 
 Usage:
   vm.sh create [--force]   download the Debian cloud image, build disk.qcow2,
                            render vm/cloud-init into seed.iso
-  vm.sh start              boot the VM under KVM
+  vm.sh start              boot the VM (hardware or software acceleration)
   vm.sh stop               power the VM off
   vm.sh status             show VM state (exit 0 when running, 1 when stopped)
   vm.sh ssh [-- cmd...]    wait for sshd, then open an SSH session
@@ -592,15 +687,18 @@ main() {
   fi
   case "$cmd" in
     create)
+      resolve_host_arch
       validate_env
       cmd_create "$@"
       ;;
     start)
+      resolve_host_arch
       validate_env
       cmd_start "$@"
       ;;
     stop) cmd_stop "$@" ;;
     status)
+      resolve_host_arch
       validate_env
       cmd_status "$@"
       ;;

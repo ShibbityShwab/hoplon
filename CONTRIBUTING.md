@@ -12,7 +12,7 @@ that ships offensive tooling.
 - Read [AGENTS.md](AGENTS.md) for the operator model and the rules of
   engagement.
 - Read [SECURITY.md](SECURITY.md) if your change touches the launcher, the
-  sandbox, permissions, or anything that handles credentials.
+  isolation tiers, permissions, or anything that handles credentials.
 - Check the issue tracker for an existing issue. Open one before large work so
   the design can be agreed on first.
 
@@ -43,7 +43,7 @@ git clone <your-fork> hoplon
 cd hoplon
 scripts/install.sh
 cp .env.example .env      # then set VENICE_API_KEY
-./hoplon doctor           # report binary, key, sandbox, MCP and weapon tooling
+./hoplon doctor           # report binary, key, MCP and weapon tooling
 ```
 
 `scripts/install.sh` fetches a pinned opencode binary into `bin/`. The default
@@ -133,7 +133,7 @@ Common types:
 Examples:
 
 ```text
-feat(launcher): add HOPLON_SANDBOX_BINS passthrough
+feat(vm): select the accelerator per host platform
 fix(install): install by rename so a killed download cannot truncate
 docs(readme): document the Magic Context plugin
 ```

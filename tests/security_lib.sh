@@ -15,15 +15,3 @@ hoplon_secure_repo() {
   [ -f "$HOPLON_TEST_REPO/VERSION" ] && cp "$HOPLON_TEST_REPO/VERSION" "$1/VERSION"
   mkdir -p "$1/home"
 }
-
-# hoplon_skip <reason>: a prerequisite (bwrap, network) is unavailable here.
-hoplon_skip() {
-  printf 'SKIP: %s\n' "$1"
-  exit 0
-}
-
-# hoplon_have_bwrap: true when bubblewrap can create a user namespace here.
-hoplon_have_bwrap() {
-  command -v bwrap > /dev/null 2>&1 &&
-    bwrap --unshare-user --ro-bind / / /bin/true > /dev/null 2>&1
-}

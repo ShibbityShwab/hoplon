@@ -42,63 +42,52 @@ through the built-in venice provider. Use the plain model id.
 Check that the model is one of the seven allowlisted uncensored models. The
 `whitelist` rejects any other Venice model id. See [Models](models.md).
 
-## `HOPLON_SANDBOX=1` but bwrap is missing
-
-The launcher prints a warning and runs unsandboxed. Install `bubblewrap`:
-
-```bash
-# Debian/Ubuntu
-sudo apt install bubblewrap
-# Fedora
-sudo dnf install bubblewrap
-```
-
-Check `./hoplon doctor` for `bwrap (sandbox)`.
-
-## Raw-socket tools fail in the sandbox
-
-`nmap -sS`, ARP sweeps, and packet capture need `CAP_NET_RAW` and do not work
-inside `bwrap`. Run those unsandboxed:
-
-```bash
-HOPLON_SANDBOX=0 ./hoplon
-```
-
-## Host user tools are missing in the sandbox
-
-Tools in `~/.local/bin`, `~/.cargo/bin`, `~/go/bin`, or `~/.bun/bin` are not
-mounted by default. Set `HOPLON_SANDBOX_BINS=1`.
-
-## The sandbox refuses to launch from `/` or the host home
-
-Launching from `/`, the host home, or an ancestor of the host home would bind an
-entire tree read-write, so the launcher exits with `refusing to sandbox`. Start
-from a project directory instead. To override on purpose:
-
-```bash
-HOPLON_SANDBOX=1 HOPLON_SANDBOX_ALLOW_BROAD=1 ./hoplon
-```
-
-The override prints a warning and binds the broad target read-write.
-
-## Docker or another container runtime fails in the sandbox
-
-`/run` is an empty tmpfs inside the sandbox, so the Docker socket, containerd,
-podman, dbus, and `/run/user` are not visible. The Docker-backed MCP servers
-(`nuclei`, `sqlmap`, `ffuf`, `ghidra`) cannot reach a host daemon from inside.
-Run those unsandboxed, or use a guest tier where the daemon runs in the guest.
-
 ## `HOPLON_ISOLATION=vm` fails
 
-The VM backend needs `qemu-system-x86_64`, `qemu-img`, `xorriso`, `ssh-keygen`,
-and a writable `/dev/kvm`. Build the guest before booting it:
+The VM backend needs the QEMU system binary for your architecture
+(`qemu-system-x86_64`, or `qemu-system-aarch64` on arm64), `qemu-img`,
+`xorriso`, and `ssh-keygen`. Build the guest before booting it:
 
 ```bash
 scripts/vm.sh create
 scripts/vm.sh start
 ```
 
-See [QEMU guest](vm.md).
+Check the detected accelerator with `scripts/vm.sh status`. See
+[QEMU guest](vm.md).
+
+## QEMU reports "not a valid accelerator" or the guest is very slow
+
+`scripts/vm.sh` picks the accelerator per host: KVM on Linux with a usable
+`/dev/kvm`, HVF on macOS, WHPX on Windows, else TCG software emulation. TCG is
+slow by design. Check the choice and override it with `HOPLON_VM_ACCEL`:
+
+```bash
+scripts/vm.sh status
+HOPLON_VM_ACCEL=tcg scripts/vm.sh start
+```
+
+An explicitly requested accelerator the host lacks fails immediately with a
+clear message; the automatic TCG fallback only warns.
+
+## KVM is unavailable on Linux
+
+`/dev/kvm` is missing or not writable. Load the module (`sudo modprobe kvm` with
+the CPU vendor module), add your user to the `kvm` group, or accept the slow TCG
+fallback. In a container, pass `--device /dev/kvm`. `scripts/vm.sh status` shows
+which accelerator was chosen.
+
+## Docker or another container runtime in the guest
+
+The Docker-backed MCP servers (`nuclei`, `sqlmap`, `ffuf`, `ghidra`) need a
+reachable daemon. On the host tier they reach the host daemon. In the `vm` or
+`nix` guest, start the daemon inside the guest.
+
+## ARM64 guests need UEFI firmware
+
+On arm64 hosts the Debian arm64 cloud image boots through UEFI. Install QEMU's
+EDK2 armvirt firmware (for example `edk2-armvirt` on Debian/Ubuntu) or point
+`HOPLON_VM_IMAGE_URL` at an image that carries its own bootloader.
 
 ## `HOPLON_ISOLATION=nix` fails
 
@@ -162,5 +151,5 @@ the first run they are cached in `./home`.
 ## Still stuck
 
 Run `./hoplon doctor` and include its full output when you ask for help. It
-reports the version, key status, sandbox availability, MCP runtimes, weapon
-binaries, and Venice reachability.
+reports the version, key status, MCP runtimes, weapon binaries, and Venice
+reachability.

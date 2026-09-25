@@ -2,9 +2,10 @@
 
 Hoplon is portable and isolated. The launcher (`./hoplon`) is the state
 boundary: it never reads or writes the host's OpenCode or OMO state, with the
-temporary OMO takeover as the one exception. With `HOPLON_SANDBOX=1` it is also
-the containment boundary for the filesystem and credentials. This page describes
-what it isolates and how.
+temporary OMO takeover as the one exception. It isolates state, not the kernel.
+The containment boundary is the QEMU virtual machine (`HOPLON_ISOLATION=vm`),
+which runs on every supported host. This page describes what the launcher
+isolates and how.
 
 ## The isolated home
 
@@ -59,7 +60,7 @@ DOCKER_HOST  DOCKER_TLS_VERIFY  DOCKER_CERT_PATH  DOCKER_CONTEXT
 
 It also unsets every exported `AZURE_*`, `GOOGLE_*`, or `GCP_*` name, then
 resets `XDG_RUNTIME_DIR` to `$HOME/.run` and `TMPDIR` to `$HOME/tmp` inside the
-isolated home. This runs on every launch, sandboxed or not.
+isolated home. This runs on every launch.
 
 ## Autoupdate and telemetry are off
 
@@ -148,26 +149,28 @@ Set `HOPLON_OMO_TAKEOVER=0` to disable the takeover and let the host config win.
 
 | Value | Boundary | Kernel | Page |
 | --- | --- | --- | --- |
-| `host` (default) | isolated HOME; optional sandbox with a read-only repo | host | [Sandbox](sandbox.md) |
-| `vm` | full Debian guest | own, under QEMU/KVM | [QEMU guest](vm.md) |
-| `nix` | declarative NixOS guest | own, under QEMU/KVM | [NixOS guest](nixos-vm.md) |
+| `host` (default) | isolated HOME, XDG, and credentials; shares the host kernel | host | this page |
+| `vm` | full Debian guest under QEMU, on Linux, macOS, and Windows | own | [QEMU guest](vm.md) |
+| `nix` | declarative NixOS guest under QEMU | own | [NixOS guest](nixos-vm.md) |
 
-`host` isolates state but shares the host kernel. `vm` and `nix` give the guest
-its own kernel, filesystem, and user, so nothing it does reaches the host OS.
-Both guests are self-contained and provision their own toolchain.
+`host` isolates state but shares the host kernel, so a kernel-level defect or a
+determined process can still reach the host. `vm` and `nix` give the guest its
+own kernel, filesystem, and user, so nothing it does reaches the host OS. The VM
+is the cross-platform choice: QEMU runs on Linux (KVM), macOS (HVF), and Windows
+(WHPX or TCG). Both guests are self-contained and provision their own toolchain.
 
 ## What is not isolated
 
 - The network. The agent can reach the internet, which the Venice API requires.
-- The target directory you pass on the command line. The launcher binds it in
-  the sandbox and uses it as the working directory.
-- The repository itself on the host tier. Without the sandbox the agent can edit
-  the launcher, `scripts/`, `config/`, and `.env`; the sandbox binds the repo
-  read-only.
+- The target directory you pass on the command line. The launcher uses it as the
+  working directory.
+- The repository itself on the host tier. The agent can edit the launcher,
+  `scripts/`, `config/`, and `.env`. Inside the `vm` or `nix` guest it can only
+  edit the copy that lives in the guest.
 - Anything you explicitly pass through with `HOPLON_SHARE_SSH` or
   `HOPLON_SHARE_GH`.
 
-For filesystem isolation beyond the home directory, use the sandbox. For a full
-boundary, step up to a guest tier: `HOPLON_ISOLATION=vm` or `nix` runs the whole
-stack inside a guest with its own kernel. See [Sandbox](sandbox.md),
-[QEMU guest](vm.md), and [NixOS guest](nixos-vm.md).
+For a real boundary, use the QEMU guest: `HOPLON_ISOLATION=vm` runs the whole
+stack inside a virtual machine with its own kernel, on any supported host. The
+`nix` tier does the same with a pinned, declarative NixOS guest. See
+[QEMU guest](vm.md) and [NixOS guest](nixos-vm.md).

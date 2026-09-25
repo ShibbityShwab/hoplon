@@ -16,7 +16,6 @@ hoplon doctor
   repo                /path/to/hoplon
   opencode            1.18.25
   VENICE_API_KEY      set
-  bwrap (sandbox)     yes
   node / npx          yes / yes
   uvx (python MCP)    yes
   docker (docker MCP) yes
@@ -66,8 +65,7 @@ This is useful for scripting and for a quick check that the provider is wired up
 ./hoplon /path/to/project
 ```
 
-The TUI starts with that directory as the working directory. The launcher binds
-the target directory into the sandbox when `HOPLON_SANDBOX=1`.
+The TUI starts with that directory as the working directory.
 
 ## 6. Start an engagement
 
@@ -75,20 +73,19 @@ Before any active testing, load the rules-of-engagement skill. The `redteam-roe`
 skill gates every other offense skill. Confirm written authorization and exact
 scope first. See [Rules of engagement](rules-of-engagement.md).
 
-## 7. Handle untrusted content in the sandbox
+## 7. Handle untrusted content in a guest
 
-When you are about to run risky code or process untrusted content, restart under
-the sandbox:
+When you are about to run risky code or process untrusted content, step up to the
+QEMU guest. The whole stack moves inside a Debian virtual machine with its own
+kernel, filesystem, and user:
 
 ```bash
-HOPLON_SANDBOX=1 ./hoplon
+HOPLON_ISOLATION=vm ./hoplon
 ```
 
-The host filesystem is hidden. The repo is read-only, so the agent cannot edit
-the launcher, `scripts/`, `config/`, or `.env`; only the isolated home and the
-target directory are writable. Host credentials and container sockets are not
-visible. Network stays up for the Venice API. Raw-socket tooling does not work
-inside; run that unsandboxed. See [Sandbox](sandbox.md).
+The host filesystem is not visible to the guest, so the agent cannot reach the
+launcher, `scripts/`, `config/`, `.env`, or any host credential. The network
+stays up for the Venice API. See [QEMU guest](vm.md).
 
 ## 8. Step up to a guest tier
 

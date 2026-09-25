@@ -72,8 +72,8 @@ Bash guards:
 
 These guards are broad but not exhaustive. `bash -c 'rm -rf /'` and other
 wrappers bypass the match, and unusual flag orders slip through. Treat YOLO mode
-as host-level authority; the sandbox (`HOPLON_SANDBOX=1`) or a guest tier is the
-real boundary. See [Security](security.md) and [Sandbox](sandbox.md).
+as host-level authority; the QEMU guest (`HOPLON_ISOLATION=vm`) is the real
+boundary. See [Security](security.md) and [QEMU guest](vm.md).
 
 ### Provider
 

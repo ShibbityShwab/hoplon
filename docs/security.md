@@ -2,7 +2,7 @@
 
 Hoplon runs with YOLO permissions by default and removes the platform content
 filter. That is a deliberate trade for red-team speed. Containment comes from
-the sandbox or a guest tier, not from the permission rules. This page states the
+the QEMU virtual machine, not from the permission rules. This page states the
 threat model and the mitigations honestly.
 
 ## Threat model
@@ -26,18 +26,18 @@ The bash rules cover `rm`, `dd`, disk tools, recursive chown/chmod, `sudo`,
 fork bombs, and forced pushes. They are a text denylist, not a containment
 boundary: `bash -c 'rm -rf /'` and other wrappers bypass the match, and unusual
 flag orders slip through. Treat YOLO mode as host-level authority. The real
-boundaries are `HOPLON_SANDBOX=1` and the guest tiers
-(`HOPLON_ISOLATION=vm|nix`).
+boundary is the guest tier (`HOPLON_ISOLATION=vm|nix`), with the QEMU virtual
+machine as the cross-platform default.
 
-## The sandbox is the containment boundary
+## The VM is the containment boundary
 
-`HOPLON_SANDBOX=1` hides the host filesystem behind bubblewrap while keeping the
-network for the API. The repo is mounted read-only, so the agent cannot rewrite
-the launcher, `scripts/`, `config/`, or `.env`; only the isolated state home and
-the target directory are writable. `/run` is an empty tmpfs, so the Docker
-socket, containerd, podman, dbus, and `/run/user` are not visible. The launcher
-also drops host credential and agent variables before launch. Raw-socket tools
-must run outside it. See [Sandbox](sandbox.md).
+`HOPLON_ISOLATION=vm` hands the whole stack to a Debian guest under QEMU with
+its own kernel, filesystem, and user. The host filesystem is not visible to the
+guest at all, so the agent cannot reach the launcher, `scripts/`, `config/`,
+`.env`, or any host credential. The guest gets the network the Venice API needs
+and can share one directory you choose read-only with `HOPLON_VM_SHARE`. QEMU
+provides the same boundary on Linux (KVM), macOS (HVF), and Windows (WHPX or
+TCG), so there is no per-OS sandbox to configure. See [QEMU guest](vm.md).
 
 ## Provider integrity
 
@@ -50,8 +50,8 @@ built-in provider is what makes reasoning and Venice options work correctly.
 
 With web fetch and search allowed, untrusted content can reach the model. Keep
 the API key scoped and prefer a proxy or a disposable host when working against
-hostile targets. The sandbox limits what injected instructions can reach on
-disk; the `vm` and `nix` tiers limit them to the guest.
+hostile targets. The `vm` and `nix` tiers limit injected instructions to the
+guest.
 
 ## Install integrity
 
