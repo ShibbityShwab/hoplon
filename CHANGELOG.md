@@ -9,24 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Expanded offensive toolkit.** Both guests ship a broad red-team and
+- **Expanded offensive toolkit.** The Debian guest ships a broad red-team and
   software-exploitation toolset across recon, web, credentials, Active
   Directory, exploit development, fuzzing, reversing, forensics, network
   interception, cloud, and post-exploitation, plus cross-compile toolchains.
-  See `docs/tooling.md` and `nix/toolchain.nix`.
-- **Isolation tiers.** `HOPLON_ISOLATION=host|vm|nix` selects where the stack
-  runs: the isolated home on this machine, a Debian QEMU/KVM guest, or a
-  declarative NixOS guest. The launcher hands off to the matching backend.
+  See `docs/tooling.md` and `scripts/toolchain.sh`.
+- **Isolation tiers.** `HOPLON_ISOLATION=host|vm` selects where the stack runs:
+  the isolated home on this machine or a Debian QEMU/KVM guest. The launcher
+  hands off to the matching backend.
 - **Debian QEMU guest.** `scripts/vm.sh` creates, boots, and destroys a Debian
   cloud-image guest provisioned by cloud-init, on Linux (KVM), macOS (HVF), and
   Windows (WHPX or TCG). `HOPLON_VM_TOOLS`, `HOPLON_VM_ACCEL`, and the VM knobs
   are documented in `docs/vm.md`.
-- **NixOS guest.** `flake.nix` emits a bootable VM (`nix run .#vm`) and a qcow2
-  image (`nix build .#qcow2`) from pinned Nix inputs; `scripts/nix-vm.sh` wraps
-  both.
 - **Shared toolchain installer.** `scripts/toolchain.sh` provisions the
-  red-team toolbox on Debian and Ubuntu, used by the QEMU guest. The NixOS guest
-  pins the same toolset in `nix/toolchain.nix`.
+  red-team toolbox on Debian and Ubuntu, used by the QEMU guest.
 
 ### Removed
 
@@ -35,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   selected with `HOPLON_ISOLATION=vm`, which runs on Linux (KVM), macOS (HVF),
   and Windows (WHPX or TCG). Host-tier isolation is unchanged: the launcher
   still isolates `HOME`, all four XDG variables, credentials, and config.
+- **The NixOS guest and flake.** The declarative NixOS guest and its `flake.nix`, `nix/`, and `scripts/nix-vm.sh` wrapper are removed, and `HOPLON_ISOLATION=nix` is no longer accepted. The Debian QEMU guest (`HOPLON_ISOLATION=vm`) is the single guest.
 
 ## [1.0.0] - 2026-09-25
 

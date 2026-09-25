@@ -2,9 +2,9 @@
 
 `HOPLON_ISOLATION=vm` runs the whole stack inside a Debian QEMU guest with its
 own kernel, filesystem, and user. Nothing the guest does reaches the host OS.
-This is the middle tier: stronger than the isolated host tier, lighter than the
-[NixOS guest](nixos-vm.md). QEMU is the one virtualization layer present on
-Linux, macOS, and Windows, so this is the single cross-platform isolation model.
+This is the guest tier: the `host` tier shares the host kernel, while this guest
+has its own. QEMU is the one virtualization layer present on Linux, macOS, and
+Windows, so this is the single cross-platform isolation model.
 
 ## Platform support
 
@@ -60,5 +60,5 @@ the modest base set; `full` adds the wider red-team toolset. Set
 ## Tradeoff
 
 The Debian guest provisions quickly and is easy to change live, but it drifts
-with the cloud image and the toolchain script. For a fully pinned, reproducible
-guest use the [NixOS guest](nixos-vm.md).
+with the cloud image and the toolchain script. Pin `HOPLON_VM_IMAGE_URL` and
+rerun `scripts/toolchain.sh` on a fresh guest to keep it reproducible.

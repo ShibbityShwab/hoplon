@@ -1,12 +1,12 @@
 # Tooling
 
-Both guests ship a broad offensive-security toolkit so you can start working the
-moment the guest boots. Coverage is grouped by category and the exact list is
-always the source of truth, never this page:
+The Debian guest ships a broad offensive-security toolkit so you can start
+working the moment the guest boots. Coverage is grouped by category and the
+exact list is always the source of truth, never this page:
 
-- NixOS guest: `nix/toolchain.nix` (declared, pinned to nixpkgs).
-- Debian guest: `scripts/toolchain.sh --list` (installed by cloud-init when
-  `HOPLON_VM_TOOLS=core` or `full`).
+- `scripts/vm.sh` provisions the guest and runs the installer on first boot.
+- `scripts/toolchain.sh --list` prints the exact list installed when
+  `HOPLON_VM_TOOLS=core` or `full`.
 
 ## Categories
 
@@ -27,11 +27,9 @@ always the source of truth, never this page:
 
 ## Adding a tool
 
-- NixOS guest: add the attribute to `nix/toolchain.nix` and rebuild. If it is not
-  in nixpkgs, install it inside the guest with `pipx`, `go install`, `cargo
-  install`, or a release download; those land in the persisted home.
-- Debian guest: add an entry to `FULL_TOOLS` and a dispatch case in
-  `scripts/toolchain.sh`, or install it live inside the guest.
+Add an entry to `FULL_TOOLS` and a dispatch case in `scripts/toolchain.sh`, or
+install it live inside the guest. The next `scripts/vm.sh start` on a fresh
+guest runs the installer and picks it up.
 
 ## What is brought, not shipped
 
@@ -50,7 +48,6 @@ A Linux guest cannot hold everything, and a few things cannot be shipped at all:
 
 ## Offline
 
-The NixOS guest builds its toolchain into the image, so it works offline after
-the first build. The Debian guest installs over the network on first boot; set
-`HOPLON_VM_TOOLS=none` to skip provisioning, or run `scripts/toolchain.sh`
-yourself later.
+The Debian guest installs its toolchain over the network on first boot, so it
+needs connectivity then. Set `HOPLON_VM_TOOLS=none` to skip provisioning, or run
+`scripts/toolchain.sh` yourself later.

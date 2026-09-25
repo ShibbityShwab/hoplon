@@ -10,8 +10,8 @@ This page describes how the pieces fit.
 | --- | --- | --- |
 | `hoplon` | launcher: isolation, seed, OMO conflict handling | repo root |
 | `scripts/install.sh` | fetch and verify the opencode binary, pre-seed caches | `scripts/` |
-| Isolation backends | Debian QEMU guest and declarative NixOS guest | `scripts/vm.sh`, `scripts/nix-vm.sh`, `flake.nix` |
-| Toolchain | red-team toolbox for the guests | `scripts/toolchain.sh`, `nix/toolchain.nix` |
+| Isolation backend | Debian QEMU guest | `scripts/vm.sh` |
+| Toolchain | red-team toolbox for the guest | `scripts/toolchain.sh` |
 | OpenCode | the agent runtime | `bin/opencode` (fetched) |
 | Oh My OpenAgent | agent and category routing, background tasks, team mode | npm plugin |
 | Magic Context | long-session context management and compaction | npm plugin |
@@ -33,7 +33,7 @@ This page describes how the pieces fit.
   +-- drop host credential and agent variables; reset XDG_RUNTIME_DIR and TMPDIR
   +-- disable autoupdate and OMO telemetry
   +-- (doctor? print report and exit)
-  +-- (HOPLON_ISOLATION=vm|nix? exec the guest backend and exit)
+  +-- (HOPLON_ISOLATION=vm? exec the guest backend and exit)
   +-- preflight: bin/opencode, config/opencode.jsonc, VENICE_API_KEY
   +-- seed config, themes, agents, tui into isolated home
   +-- seed git identity and login-shell profile
@@ -50,10 +50,9 @@ taken-over host config.
 The launcher is the state boundary. It isolates `HOME` and all four XDG
 variables, drops host `OPENCODE_*` selectors and host credential variables, and
 seeds config by copy. The default `host` tier shares the host kernel.
-`HOPLON_ISOLATION=vm` runs the whole stack in a QEMU guest and `nix` in a
-declarative NixOS guest; each has its own kernel, so the guest boundary replaces
-the launcher's and works on Linux, macOS, and Windows. See
-[Isolation](isolation.md) and [QEMU guest](vm.md).
+`HOPLON_ISOLATION=vm` runs the whole stack in a QEMU guest with its own kernel,
+so the guest boundary replaces the launcher's and works on Linux, macOS, and
+Windows. See [Isolation](isolation.md) and [QEMU guest](vm.md).
 
 ## Configuration layers
 

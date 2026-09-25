@@ -20,7 +20,6 @@ Optional, for the MCP servers that need them:
 - `docker` for the `nuclei`, `sqlmap`, `ffuf`, and `ghidra` servers
 - `qemu-system-x86_64` (or `qemu-system-aarch64` on arm64 hosts), `qemu-img`,
   and `xorriso` for the `vm` tier
-- `nix` with flakes and a working QEMU accelerator for the `nix` tier
 
 ## Clone and install
 
@@ -113,20 +112,19 @@ reachable. It does not seed or launch.
 ## Isolation tiers
 
 `HOPLON_ISOLATION` chooses where the stack runs. `host` is the default and
-everything above. `vm` and `nix` hand the whole distribution to a guest with
-its own kernel, filesystem, and user:
+everything above. `vm` hands the whole distribution to a guest with its own
+kernel, filesystem, and user:
 
 | Value | What it runs | Requirements | Page |
 | --- | --- | --- | --- |
 | `host` (default) | isolated HOME on this machine, sharing the host kernel | none | [Isolation](isolation.md) |
 | `vm` | Debian QEMU guest provisioned by cloud-init | QEMU, `xorriso`, a working accelerator | [QEMU guest](vm.md) |
-| `nix` | declarative NixOS guest built from pinned Nix inputs | Nix with flakes, a working accelerator | [NixOS guest](nixos-vm.md) |
 
 QEMU selects its accelerator per host: KVM on Linux, HVF on macOS, WHPX or TCG
 on Windows. Override it with `HOPLON_VM_ACCEL` (see [QEMU guest](vm.md)).
 
-The `vm` and `nix` tiers install their own toolchain in the guest; the host
-needs only the tools above to build and boot it.
+The `vm` tier installs its own toolchain in the guest; the host needs only the
+tools above to build and boot it.
 
 ## Updating
 
@@ -137,12 +135,9 @@ To update, re-run `scripts/install.sh` with a new `HOPLON_OPENCODE_VERSION`, or
 ## Uninstalling
 
 Delete the directory. Runtime state lives in `./home`, VM state in `./vm`, and
-the opencode binary in `./bin`, all inside the tree. Three things live outside
-it:
+the opencode binary in `./bin`, all inside the tree. Two things live outside it:
 
 - The `hoplon` symlink the installer created in `HOPLON_BIN_DIR` (default
   `$HOME/.local/bin`). Delete it.
 - A host `~/.omo/omo.jsonc` that the launcher temporarily swaps and restores on
   exit; see [Isolation](isolation.md).
-- The Nix package wrapper keeps a writable home at `~/.local/share/hoplon`.
-  Delete it if you installed through the flake.

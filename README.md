@@ -21,7 +21,7 @@ Hoplon is an OpenCode distribution for authorized offensive security work. It ru
 | **Venice only, uncensored** | `provider.venice.whitelist` allows exactly seven uncensored models. The allowlist is enforced, not a suggestion. |
 | **Portable and isolated** | Its own `HOME` and all four XDG dirs live under `./home`. No host OpenCode or OMO state is read or written, except a host OMO config that would override the routing, which is taken over for the session and restored on exit. |
 | **Cross-platform VM** | `HOPLON_ISOLATION=vm` runs the whole stack inside a QEMU guest with its own kernel on Linux, macOS, and Windows. One isolation model, no per-OS sandbox. |
-| **Isolation tiers** | `HOPLON_ISOLATION=host` (default) isolates state on this machine; `vm` boots a Debian QEMU guest; `nix` boots a declarative NixOS guest. Each guest has its own kernel, so nothing reaches the host OS. |
+| **Isolation tiers** | `HOPLON_ISOLATION=host` (default) isolates state on this machine; `vm` boots a Debian QEMU guest with its own kernel, so nothing reaches the host OS. |
 | **ROE-gated specialists** | Six red-team subagents and five offense skills, gated by a mandatory `redteam-roe` skill. |
 | **Pinned MCP tooling** | Venice's official MCP server is enabled by default; every `npx` and `uvx` server is version-pinned. |
 | **Reproducible** | A shell test suite and CI cover the config, the launcher, and the no-dash rule. |
@@ -67,7 +67,7 @@ environment:
 
 | Variable | Effect |
 | --- | --- |
-| `HOPLON_ISOLATION=host\|vm\|nix` | where the stack runs: this machine, a Debian QEMU/KVM guest, or a declarative NixOS guest |
+| `HOPLON_ISOLATION=host\|vm` | where the stack runs: this machine or a Debian QEMU/KVM guest |
 | `HOPLON_ENABLE_OMO=0` | run plain OpenCode; drops the OMO plugin and its takeover |
 | `HOPLON_VM_ACCEL=kvm\|hvf\|whpx\|tcg` | force the QEMU accelerator instead of auto-detecting it per host |
 | `HOPLON_OMO_TAKEOVER=0` | leave a conflicting host `~/.omo/omo.jsonc` alone and let it win |
@@ -94,7 +94,7 @@ environment:
 | **Harness** | Oh My OpenAgent (OMO) supplies agent and category routing, background tasks, and team mode. Optional; see below. |
 | **Models** | Seven allowlisted Venice uncensored models, routed per agent and category. |
 | **VM** | The QEMU guest (`HOPLON_ISOLATION=vm`): its own kernel, filesystem, and user. Runs on Linux, macOS, and Windows. |
-| **Isolation tiers** | `host` (isolated state), `vm` (Debian QEMU guest), or `nix` (declarative NixOS guest). The guests have their own kernel. |
+| **Isolation tiers** | `host` (isolated state) or `vm` (Debian QEMU guest). The guest has its own kernel. |
 | **Skills** | Five red-team skills plus 20 vendored Venice API skills. |
 | **MCP** | Venice's MCP server on by default; recon and weapon servers present but off until enabled. |
 
@@ -105,7 +105,6 @@ environment:
 - [Installation](docs/installation.md)
 - [Isolation](docs/isolation.md)
 - [QEMU guest](docs/vm.md)
-- [NixOS guest](docs/nixos-vm.md)
 - [Tooling](docs/tooling.md)
 - [Models](docs/models.md)
 - [MCP servers](docs/mcp-servers.md)

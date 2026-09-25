@@ -151,13 +151,12 @@ Set `HOPLON_OMO_TAKEOVER=0` to disable the takeover and let the host config win.
 | --- | --- | --- | --- |
 | `host` (default) | isolated HOME, XDG, and credentials; shares the host kernel | host | this page |
 | `vm` | full Debian guest under QEMU, on Linux, macOS, and Windows | own | [QEMU guest](vm.md) |
-| `nix` | declarative NixOS guest under QEMU | own | [NixOS guest](nixos-vm.md) |
 
 `host` isolates state but shares the host kernel, so a kernel-level defect or a
-determined process can still reach the host. `vm` and `nix` give the guest its
-own kernel, filesystem, and user, so nothing it does reaches the host OS. The VM
-is the cross-platform choice: QEMU runs on Linux (KVM), macOS (HVF), and Windows
-(WHPX or TCG). Both guests are self-contained and provision their own toolchain.
+determined process can still reach the host. `vm` gives the guest its own
+kernel, filesystem, and user, so nothing it does reaches the host OS. The VM is
+the cross-platform choice: QEMU runs on Linux (KVM), macOS (HVF), and Windows
+(WHPX or TCG). The guest is self-contained and provisions its own toolchain.
 
 ## What is not isolated
 
@@ -165,12 +164,11 @@ is the cross-platform choice: QEMU runs on Linux (KVM), macOS (HVF), and Windows
 - The target directory you pass on the command line. The launcher uses it as the
   working directory.
 - The repository itself on the host tier. The agent can edit the launcher,
-  `scripts/`, `config/`, and `.env`. Inside the `vm` or `nix` guest it can only
-  edit the copy that lives in the guest.
+  `scripts/`, `config/`, and `.env`. Inside the `vm` guest it can only edit the
+  copy that lives in the guest.
 - Anything you explicitly pass through with `HOPLON_SHARE_SSH` or
   `HOPLON_SHARE_GH`.
 
 For a real boundary, use the QEMU guest: `HOPLON_ISOLATION=vm` runs the whole
-stack inside a virtual machine with its own kernel, on any supported host. The
-`nix` tier does the same with a pinned, declarative NixOS guest. See
-[QEMU guest](vm.md) and [NixOS guest](nixos-vm.md).
+stack inside a virtual machine with its own kernel, on any supported host. See
+[QEMU guest](vm.md).

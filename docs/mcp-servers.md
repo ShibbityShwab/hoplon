@@ -66,7 +66,7 @@ docker build -t nuclei-mcp:latest .
 ```
 
 The Docker-backed servers need a reachable daemon. On the host tier they reach
-the host daemon. In the `vm` or `nix` guest, run the daemon inside the guest.
+the host daemon. In the `vm` guest, run the daemon inside the guest.
 See [Isolation](isolation.md).
 
 For `metasploit` and `bloodhound`, clone the checkouts under `/opt` and set the

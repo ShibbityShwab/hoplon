@@ -81,14 +81,13 @@ the whole stack in the guest with `HOPLON_ISOLATION=vm`. See
 ## Can the agent modify Hoplon or the repo?
 
 On the host tier, yes: the agent can edit the launcher, `scripts/`, `config/`,
-`bin/`, and `.env`. In the `vm` or `nix` guest it can only edit the copy inside
-the guest, and the host tree is not reachable. See [QEMU guest](vm.md).
+`bin/`, and `.env`. In the `vm` guest it can only edit the copy inside the
+guest, and the host tree is not reachable. See [QEMU guest](vm.md).
 
 ## Can I run it in a VM?
 
-Yes. `HOPLON_ISOLATION=vm` boots a Debian QEMU/KVM guest, and
-`HOPLON_ISOLATION=nix` boots a declarative NixOS guest. Both have their own
-kernel, filesystem, and user. See [Isolation](isolation.md).
+Yes. `HOPLON_ISOLATION=vm` boots a Debian QEMU/KVM guest with its own kernel,
+filesystem, and user. See [Isolation](isolation.md) and [QEMU guest](vm.md).
 
 ## Does `nmap -sS` work?
 

@@ -80,8 +80,8 @@ which accelerator was chosen.
 ## Docker or another container runtime in the guest
 
 The Docker-backed MCP servers (`nuclei`, `sqlmap`, `ffuf`, `ghidra`) need a
-reachable daemon. On the host tier they reach the host daemon. In the `vm` or
-`nix` guest, start the daemon inside the guest.
+reachable daemon. On the host tier they reach the host daemon. In the `vm`
+guest, start the daemon inside the guest.
 
 ## ARM64 guests need UEFI firmware
 
@@ -89,17 +89,10 @@ On arm64 hosts the Debian arm64 cloud image boots through UEFI. Install QEMU's
 EDK2 armvirt firmware (for example `edk2-armvirt` on Debian/Ubuntu) or point
 `HOPLON_VM_IMAGE_URL` at an image that carries its own bootloader.
 
-## `HOPLON_ISOLATION=nix` fails
-
-`nix` must be on `PATH` with flakes enabled. `scripts/nix-vm.sh` prints the
-install commands and exits non-zero when it is missing. `/dev/kvm` enables
-acceleration; without it QEMU emulates and the boot is slow. See
-[NixOS guest](nixos-vm.md).
-
 ## `invalid HOPLON_ISOLATION=...`
 
-Only `host`, `vm`, and `nix` are accepted. Any other value exits with an error
-before launch.
+Only `host` and `vm` are accepted. Any other value exits with an error before
+launch.
 
 ## An MCP server does not start
 

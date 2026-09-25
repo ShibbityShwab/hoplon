@@ -58,8 +58,7 @@ In scope for this policy:
 - The launcher (`hoplon`) and its isolation model: `HOME` and XDG isolation,
   environment scrubbing, the OMO config takeover and restore, and the
   `HOPLON_ISOLATION` delegation to the QEMU guest.
-- The isolation backends: `scripts/vm.sh`, `scripts/nix-vm.sh`, `flake.nix` and
-  the NixOS guest configuration, and `scripts/toolchain.sh`.
+- The isolation backend: `scripts/vm.sh` and `scripts/toolchain.sh`.
 - `scripts/install.sh`: download, checksum verification, and install-by-rename.
 - The configuration in `config/`: permissions, provider wiring, MCP servers,
   and the rules-of-engagement gate.

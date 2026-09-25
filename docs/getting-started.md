@@ -87,24 +87,10 @@ The host filesystem is not visible to the guest, so the agent cannot reach the
 launcher, `scripts/`, `config/`, `.env`, or any host credential. The network
 stays up for the Venice API. See [QEMU guest](vm.md).
 
-## 8. Step up to a guest tier
-
-The host tier isolates state but shares the host kernel. When the engagement
-needs a full boundary, run the whole stack inside a guest:
-
-```bash
-HOPLON_ISOLATION=vm ./hoplon    # Debian QEMU/KVM guest
-HOPLON_ISOLATION=nix ./hoplon   # declarative NixOS guest
-```
-
-Each guest has its own kernel, filesystem, and user, so nothing it does reaches
-the host OS. See [Isolation](isolation.md), [QEMU guest](vm.md), and
-[NixOS guest](nixos-vm.md).
-
 ## Next steps
 
 - [Configuration](configuration.md) to tune agents, permissions, and MCP servers.
 - [Models](models.md) for the model roster and limits.
 - [MCP servers](mcp-servers.md) to enable recon and weapon servers.
-- [Isolation](isolation.md) for the three tiers and what each one isolates.
+- [Isolation](isolation.md) for the two tiers and what each one isolates.
 - [Troubleshooting](troubleshooting.md) when something does not start.

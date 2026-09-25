@@ -14,7 +14,7 @@ threat model and the mitigations honestly.
 | Prompt injection | Web fetch and search are allowed; untrusted content reaches the model |
 | Host state leakage | Isolated by default; passthroughs are opt-in |
 | Host OMO config clobber | Taken over and restored, with a self-heal path |
-| Kernel-level escape | The `host` tier shares the host kernel; `vm` and `nix` guests have their own |
+| Kernel-level escape | The `host` tier shares the host kernel; the `vm` guest has its own |
 | Supply chain | Plugins and MCP servers are fetched at runtime and version-pinned |
 
 ## Permissions
@@ -26,7 +26,7 @@ The bash rules cover `rm`, `dd`, disk tools, recursive chown/chmod, `sudo`,
 fork bombs, and forced pushes. They are a text denylist, not a containment
 boundary: `bash -c 'rm -rf /'` and other wrappers bypass the match, and unusual
 flag orders slip through. Treat YOLO mode as host-level authority. The real
-boundary is the guest tier (`HOPLON_ISOLATION=vm|nix`), with the QEMU virtual
+boundary is the guest tier (`HOPLON_ISOLATION=vm`), with the QEMU virtual
 machine as the cross-platform default.
 
 ## The VM is the containment boundary
@@ -50,8 +50,7 @@ built-in provider is what makes reasoning and Venice options work correctly.
 
 With web fetch and search allowed, untrusted content can reach the model. Keep
 the API key scoped and prefer a proxy or a disposable host when working against
-hostile targets. The `vm` and `nix` tiers limit injected instructions to the
-guest.
+hostile targets. The `vm` tier limits injected instructions to the guest.
 
 ## Install integrity
 
@@ -81,9 +80,9 @@ host `OPENCODE_*` selectors, drops host credential and agent variables (SSH
 agent, cloud keys, Docker endpoints), resets `XDG_RUNTIME_DIR` and `TMPDIR` into
 the isolated home, and seeds config by copy. Host credential files are absent by
 design; `HOPLON_SHARE_SSH` and `HOPLON_SHARE_GH` are opt-in. That is the `host`
-tier. For a kernel boundary, `HOPLON_ISOLATION=vm` and `nix` run the whole stack
-in a guest with its own kernel. See [Isolation](isolation.md),
-[QEMU guest](vm.md), and [NixOS guest](nixos-vm.md).
+tier. For a kernel boundary, `HOPLON_ISOLATION=vm` runs the whole stack in a
+guest with its own kernel. See [Isolation](isolation.md) and
+[QEMU guest](vm.md).
 
 ## Reporting a vulnerability
 
