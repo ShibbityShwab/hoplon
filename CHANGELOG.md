@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Shared toolchain installer.** `scripts/toolchain.sh` provisions the
   red-team toolbox on Debian and Ubuntu, used by the QEMU guest.
 
+### Changed
+
+- **On-demand guest tooling.** `HOPLON_VM_TOOLS` now defaults to `base`: the VM
+  guest installs a minimal package set plus Hoplon and `hoplon-tool`, and fetches
+  a red-team tool only when it is needed. `hoplon-tool install NAME` provisions
+  one tool, and `/etc/profile.d/hoplon-autotool.sh` installs a known missing
+  command on demand (set `HOPLON_AUTO_INSTALL=0` to only suggest it). `core` and
+  `full` remain available to preload the arsenal on first boot. See `docs/vm.md`
+  and `docs/tooling.md`.
+
 ### Removed
 
 - **The host sandbox.** The optional per-OS host sandbox and its knobs are gone.

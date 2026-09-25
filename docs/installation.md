@@ -123,8 +123,10 @@ kernel, filesystem, and user:
 QEMU selects its accelerator per host: KVM on Linux, HVF on macOS, WHPX or TCG
 on Windows. Override it with `HOPLON_VM_ACCEL` (see [QEMU guest](vm.md)).
 
-The `vm` tier installs its own toolchain in the guest; the host needs only the
-tools above to build and boot it.
+The `vm` tier provisions itself: the default `base` guest installs Hoplon and
+`hoplon-tool` and then fetches tools on demand, so the host needs only the tools
+above to build and boot it. Set `HOPLON_VM_TOOLS=core` or `full` to preload the
+arsenal on first boot instead.
 
 ## Updating
 

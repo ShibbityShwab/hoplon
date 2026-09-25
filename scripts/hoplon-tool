@@ -1,0 +1,347 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Hoplon on-demand tool installer.
+#
+# A small guest-side CLI that provisions red-team tools one at a time instead
+# of preloading the whole arsenal. It is the front end to scripts/toolchain.sh:
+# list, known, and suggest read the known tool set, install delegates the real
+# work to toolchain.sh, and status reports what is already on the box.
+#
+# It is normally invoked by /etc/profile.d/hoplon-autotool.sh when the shell
+# cannot find a command, but it is safe to run by hand.
+#
+# Usage:
+#   hoplon-tool list                 print every known tool name
+#   hoplon-tool install NAME [...]   install exactly those tools
+#   hoplon-tool install base         install the minimal core package set
+#   hoplon-tool install all          install the full red-team toolset
+#   hoplon-tool known NAME           exit 0 when NAME is a known tool
+#   hoplon-tool suggest NAME         print the tool that provides NAME
+#   hoplon-tool status               print which tools are already present
+#   hoplon-tool help
+#
+# Environment:
+#   HOPLON_TOOL_SUDO=0   never self-elevate with sudo (used by the tests)
+#
+# The installer finds scripts/toolchain.sh next to this script, following any
+# symlink, so the repo copy and an installed /usr/local/bin/hoplon-tool link
+# behave the same. Nothing here is ever run through eval.
+# =============================================================================
+set -euo pipefail
+
+ORIG_ARGS=("$@")
+
+# Resolve this script through every symlink to the real repo file.
+resolve_self() {
+  local src="${BASH_SOURCE[0]}" dir
+  if command -v readlink > /dev/null 2>&1; then
+    while [ -L "$src" ]; do
+      dir="$(cd "$(dirname "$src")" > /dev/null 2>&1 && pwd -P)"
+      src="$(readlink "$src")"
+      case "$src" in
+        /*) ;;
+        *) src="$dir/$src" ;;
+      esac
+    done
+  fi
+  dir="$(cd "$(dirname "$src")" > /dev/null 2>&1 && pwd -P)"
+  printf '%s/%s' "$dir" "$(basename "$src")"
+}
+
+SELF_PATH="$(resolve_self)"
+SCRIPT_DIR="$(dirname "$SELF_PATH")"
+TOOLCHAIN="$SCRIPT_DIR/toolchain.sh"
+
+log() { printf 'hoplon-tool: %s\n' "$*" >&2; }
+die() {
+  printf 'hoplon-tool: %s\n' "$*" >&2
+  exit 1
+}
+
+usage() {
+  cat << 'EOF'
+usage: hoplon-tool <command> [args]
+
+  list                 print every known tool name (core then full)
+  install NAME [...]   install exactly those tools with toolchain.sh
+  install base         install the minimal core package set
+  install all          install the full red-team toolset
+  known NAME           exit 0 when NAME is a known tool or core package
+  suggest NAME         print the tool that provides NAME, or nothing
+  status               print which tools are already present
+  help                 show this help
+
+Aliases are accepted for install and known: for example nxc resolves to
+netexec. Set HOPLON_TOOL_SUDO=0 to stop self-elevation with sudo.
+EOF
+}
+
+# Map a command alias or probe binary to its canonical tool or core package.
+# Empty output means the name is not an alias.
+alias_target() {
+  case "$1" in
+    nxc | netexec) printf 'netexec' ;;
+    impacket-smbserver | impacket-secretsdump | impacket-psexec | impacket-wmiexec) printf 'impacket' ;;
+    bloodhound-python) printf 'bloodhound' ;;
+    ldapsearch) printf 'ldap-utils' ;;
+    objdump | strings) printf 'binutils' ;;
+    radare2 | rz-bin) printf 'rizin' ;;
+    theHarvester | theharvester.py) printf 'theharvester' ;;
+    pwn | pwnlib) printf 'pwntools' ;;
+    qemu-x86_64 | qemu-aarch64 | qemu-arm) printf 'qemu-user' ;;
+    afl-fuzz) printf 'afl++' ;;
+    boo) printf 'boofuzz' ;;
+    frida) printf 'frida-tools' ;;
+    fls) printf 'sleuthkit' ;;
+    vol) printf 'volatility3' ;;
+    x86_64-w64-mingw32-gcc | i686-w64-mingw32-gcc) printf 'mingw-w64' ;;
+    ncat | nc) printf 'netcat-openbsd' ;;
+    dig | nslookup | host) printf 'dnsutils' ;;
+    rg) printf 'ripgrep' ;;
+    pip3) printf 'python3-pip' ;;
+    ip) printf 'iproute2' ;;
+    ping) printf 'iputils-ping' ;;
+    ps) printf 'procps' ;;
+    gcc) printf 'build-essential' ;;
+    go) printf 'golang' ;;
+    *) printf '' ;;
+  esac
+}
+
+# Print the binary that proves a named tool is installed. Empty means there is
+# no single probe (a package or data directory is checked instead).
+probe_bin() {
+  case "$1" in
+    netexec) printf 'nxc' ;;
+    impacket) printf 'impacket-smbserver' ;;
+    bloodhound) printf 'bloodhound-python' ;;
+    ldap-utils) printf 'ldapsearch' ;;
+    binutils) printf 'objdump' ;;
+    rizin) printf 'rizin' ;;
+    theharvester) printf 'theHarvester' ;;
+    pwntools) printf 'pwn' ;;
+    qemu-user) printf 'qemu-x86_64' ;;
+    'afl++') printf 'afl-fuzz' ;;
+    boofuzz) printf 'boo' ;;
+    frida-tools) printf 'frida' ;;
+    sleuthkit) printf 'fls' ;;
+    volatility3) printf 'vol' ;;
+    mingw-w64) printf 'x86_64-w64-mingw32-gcc' ;;
+    netcat-openbsd) printf 'nc' ;;
+    dnsutils) printf 'dig' ;;
+    ripgrep) printf 'rg' ;;
+    python3-pip) printf 'pip3' ;;
+    iproute2) printf 'ip' ;;
+    iputils-ping) printf 'ping' ;;
+    procps) printf 'ps' ;;
+    build-essential) printf 'gcc' ;;
+    golang) printf 'go' ;;
+    python3-venv | ca-certificates | llvm) printf '' ;;
+    capstone | keystone-engine | unicorn) printf '' ;;
+    seclists | rockyou | hashcat-utils | pwndbg | peass | responder) printf '' ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+# Return success when a named tool or core package looks installed.
+tool_present() {
+  local name="$1" bin
+  bin="$(probe_bin "$name")"
+  if [ -n "$bin" ] && command -v "$bin" > /dev/null 2>&1; then
+    return 0
+  fi
+  case "$name" in
+    python3-venv | ca-certificates | llvm)
+      dpkg -s "$name" > /dev/null 2>&1
+      return
+      ;;
+    capstone)
+      python3 -c 'import capstone' > /dev/null 2>&1
+      return
+      ;;
+    keystone-engine)
+      python3 -c 'import keystone' > /dev/null 2>&1
+      return
+      ;;
+    unicorn)
+      python3 -c 'import unicorn' > /dev/null 2>&1
+      return
+      ;;
+    seclists)
+      [ -d /usr/share/seclists ] && [ -n "$(ls -A /usr/share/seclists 2> /dev/null || true)" ]
+      return
+      ;;
+    rockyou)
+      [ -e /usr/share/wordlists/rockyou.txt ] || [ -e /usr/share/wordlists/rockyou.txt.gz ]
+      return
+      ;;
+    hashcat-utils)
+      [ -d /usr/lib/hashcat-utils ] || [ -d /opt/hashcat-utils ]
+      return
+      ;;
+    pwndbg)
+      [ -d /opt/pwndbg ]
+      return
+      ;;
+    peass)
+      [ -d /opt/peass ]
+      return
+      ;;
+    responder)
+      [ -d /opt/responder ]
+      return
+      ;;
+  esac
+  dpkg -s "$name" > /dev/null 2>&1
+}
+
+# The known tool set comes from the shared installer, so there is one source of
+# truth. Strip its "core:" and "full:" section headers.
+list_names() {
+  bash "$TOOLCHAIN" --list 2> /dev/null | grep -vE '^(core|full):$' || true
+}
+
+require_toolchain() {
+  [ -f "$TOOLCHAIN" ] || die "toolchain.sh not found next to $SELF_PATH"
+}
+
+cmd_list() {
+  require_toolchain
+  bash "$TOOLCHAIN" --list
+}
+
+cmd_known() {
+  local name="${1:-}"
+  [ -n "$name" ] || return 1
+  if [ -n "$(alias_target "$name")" ]; then
+    return 0
+  fi
+  list_names | grep -qxF -- "$name"
+}
+
+cmd_suggest() {
+  local name="${1:-}" target
+  [ -n "$name" ] || return 0
+  target="$(alias_target "$name")"
+  if [ -n "$target" ]; then
+    printf '%s\n' "$target"
+    return 0
+  fi
+  if list_names | grep -qxF -- "$name"; then
+    printf '%s\n' "$name"
+  fi
+  return 0
+}
+
+cmd_status() {
+  require_toolchain
+  local name total=0 present=0
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    total=$((total + 1))
+    if tool_present "$name"; then
+      printf 'present  %s\n' "$name"
+      present=$((present + 1))
+    else
+      printf 'missing  %s\n' "$name"
+    fi
+  done < <(list_names)
+  printf '\n%s of %s known tools present\n' "$present" "$total"
+}
+
+# Re-execute this script as root when an install needs it. HOPLON_TOOL_SUDO=0
+# disables the elevation so a caller can keep it unprivileged (tests do this).
+elevate_if_needed() {
+  if [ "$(id -u)" -eq 0 ]; then
+    return 0
+  fi
+  if [ "${HOPLON_TOOL_SUDO:-1}" = "0" ]; then
+    return 0
+  fi
+  if command -v sudo > /dev/null 2>&1; then
+    log "not root; re-executing with sudo"
+    exec sudo -E bash "$SELF_PATH" "${ORIG_ARGS[@]}"
+  fi
+  printf 'hoplon-tool: not root and sudo is unavailable; install may fail\n' >&2
+  return 0
+}
+
+exec_toolchain() {
+  require_toolchain
+  exec bash "$TOOLCHAIN" "$@"
+}
+
+cmd_install() {
+  [ "$#" -gt 0 ] || die "install requires at least one tool name"
+  if [ "$#" -eq 1 ]; then
+    case "$1" in
+      all | full)
+        elevate_if_needed
+        exec_toolchain --full
+        ;;
+      base | core)
+        elevate_if_needed
+        exec_toolchain --core
+        ;;
+    esac
+  fi
+
+  local one resolved
+  local -a targets=()
+  for one in "$@"; do
+    resolved="$(alias_target "$one")"
+    if [ -z "$resolved" ]; then
+      if list_names | grep -qxF -- "$one"; then
+        resolved="$one"
+      else
+        die "unknown tool: $one (run: hoplon-tool list)"
+      fi
+    fi
+    local seen=0
+    local existing
+    for existing in "${targets[@]:-}"; do
+      if [ "$existing" = "$resolved" ]; then
+        seen=1
+        break
+      fi
+    done
+    if [ "$seen" -eq 0 ]; then
+      targets+=("$resolved")
+    fi
+  done
+
+  local joined="" target
+  for target in "${targets[@]}"; do
+    joined="${joined:+$joined,}$target"
+  done
+  elevate_if_needed
+  exec_toolchain "--tools=$joined"
+}
+
+main() {
+  local cmd="${1:-help}"
+  if [ "$#" -gt 0 ]; then
+    shift
+  fi
+  case "$cmd" in
+    list) cmd_list ;;
+    install) cmd_install "$@" ;;
+    known)
+      if cmd_known "$@"; then
+        exit 0
+      else
+        exit 1
+      fi
+      ;;
+    suggest) cmd_suggest "$@" ;;
+    status) cmd_status ;;
+    help | -h | --help) usage ;;
+    *)
+      printf 'hoplon-tool: unknown command: %s\n' "$cmd" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+}
+
+main "$@"

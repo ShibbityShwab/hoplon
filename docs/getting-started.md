@@ -85,7 +85,9 @@ HOPLON_ISOLATION=vm ./hoplon
 
 The host filesystem is not visible to the guest, so the agent cannot reach the
 launcher, `scripts/`, `config/`, `.env`, or any host credential. The network
-stays up for the Venice API. See [QEMU guest](vm.md).
+stays up for the Venice API. The guest starts minimal and fetches a tool only
+when it is needed: run `hoplon-tool install NAME` in the guest, or let the
+missing-command hook do it. See [QEMU guest](vm.md) and [Tooling](tooling.md).
 
 ## Next steps
 

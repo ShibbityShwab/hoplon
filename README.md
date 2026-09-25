@@ -68,6 +68,8 @@ environment:
 | Variable | Effect |
 | --- | --- |
 | `HOPLON_ISOLATION=host\|vm` | where the stack runs: this machine or a Debian QEMU/KVM guest |
+| `HOPLON_VM_TOOLS=base\|core\|full` | guest tooling: minimal with on-demand installs (default) or a preloaded arsenal |
+| `HOPLON_AUTO_INSTALL=0` | in the guest, only suggest a missing tool instead of installing it |
 | `HOPLON_ENABLE_OMO=0` | run plain OpenCode; drops the OMO plugin and its takeover |
 | `HOPLON_VM_ACCEL=kvm\|hvf\|whpx\|tcg` | force the QEMU accelerator instead of auto-detecting it per host |
 | `HOPLON_OMO_TAKEOVER=0` | leave a conflicting host `~/.omo/omo.jsonc` alone and let it win |

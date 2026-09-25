@@ -54,8 +54,18 @@ They fail without API keys, so they are off to keep a keyless boot clean. Set
 
 Partly. The opencode binary is fetched by the installer. The OMO plugin, LSP
 servers, and `npx`/`uvx` MCP servers are fetched on first use. `scripts/install.sh`
-pre-seeds these from the host when present. For a fully offline copy, vendor all
-of them.
+pre-seeds these from the host when present. In the `vm` guest the default `base`
+mode also fetches each tool on first use, so set `HOPLON_VM_TOOLS=full` to
+preload the arsenal. For a fully offline copy, vendor all of them.
+
+## Why is the VM guest minimal by default?
+
+The `vm` guest starts with a small package set and no red-team arsenal. A tool
+is fetched only when it is needed, either with `hoplon-tool install NAME` or by
+the `/etc/profile.d/hoplon-autotool.sh` hook when a known command is missing.
+This keeps the guest small and every install intentional. Set
+`HOPLON_AUTO_INSTALL=0` in the guest to only suggest the install command, or
+`HOPLON_VM_TOOLS=core` or `full` to preload a guest. See [Tooling](tooling.md).
 
 ## Does Hoplon touch my existing OpenCode or OMO install?
 

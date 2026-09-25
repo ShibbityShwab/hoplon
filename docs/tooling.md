@@ -1,12 +1,37 @@
 # Tooling
 
-The Debian guest ships a broad offensive-security toolkit so you can start
-working the moment the guest boots. Coverage is grouped by category and the
-exact list is always the source of truth, never this page:
+The Debian guest is minimal by default (`HOPLON_VM_TOOLS=base`): it carries the
+`hoplon-tool` CLI and fetches a tool only when you need it, instead of
+preloading the whole arsenal. The known catalog still covers a broad
+offensive-security toolkit, grouped by category, and the exact list is always
+the source of truth, never this page:
 
-- `scripts/vm.sh` provisions the guest and runs the installer on first boot.
-- `scripts/toolchain.sh --list` prints the exact list installed when
-  `HOPLON_VM_TOOLS=core` or `full`.
+- `scripts/vm.sh` provisions the guest and installs `hoplon-tool` on first boot.
+- `scripts/toolchain.sh --list` prints every known tool, core and full.
+- `scripts/toolchain.sh --core` or `--full` preloads a set when you would rather
+  have the tools on disk before an engagement.
+
+## On demand
+
+In the guest, install a tool when you need it:
+
+```bash
+hoplon-tool list                 # every known tool
+hoplon-tool install sqlmap       # install exactly what you name
+hoplon-tool install sqlmap nxc   # several at once; aliases resolve
+hoplon-tool install base         # the minimal core package set
+hoplon-tool install all          # the full red-team toolset
+hoplon-tool status               # what is already present
+```
+
+When the shell cannot find a command, `/etc/profile.d/hoplon-autotool.sh`
+installs it if it is a known tool and runs it. Set `HOPLON_AUTO_INSTALL=0` to
+turn that into a suggestion only:
+
+```bash
+HOPLON_AUTO_INSTALL=0 nxc --version
+# hoplon: nxc is not installed; run: hoplon-tool install nxc
+```
 
 ## Categories
 
@@ -27,9 +52,10 @@ exact list is always the source of truth, never this page:
 
 ## Adding a tool
 
-Add an entry to `FULL_TOOLS` and a dispatch case in `scripts/toolchain.sh`, or
-install it live inside the guest. The next `scripts/vm.sh start` on a fresh
-guest runs the installer and picks it up.
+Add an entry to `FULL_TOOLS` and a dispatch case in `scripts/toolchain.sh`. A
+`base` guest then picks it up with `hoplon-tool install NAME`; a `core` or
+`full` guest picks it up on the next fresh install. You can also install it live
+inside the guest.
 
 ## What is brought, not shipped
 
@@ -48,6 +74,8 @@ A Linux guest cannot hold everything, and a few things cannot be shipped at all:
 
 ## Offline
 
-The Debian guest installs its toolchain over the network on first boot, so it
-needs connectivity then. Set `HOPLON_VM_TOOLS=none` to skip provisioning, or run
-`scripts/toolchain.sh` yourself later.
+A `base` guest installs its minimal packages and Hoplon over the network on
+first boot, then fetches each tool when it is first used, so the on-demand path
+needs connectivity at that moment. A `core` or `full` guest preloads on first
+boot and then works offline. Either way, set `HOPLON_VM_TOOLS=none` to skip
+provisioning, or run `scripts/toolchain.sh` yourself later.

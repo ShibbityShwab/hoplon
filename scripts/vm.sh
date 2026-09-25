@@ -22,7 +22,9 @@
 #
 # Environment:
 #   HOPLON_HOME            repo root (defaults to this script's parent)
-#   HOPLON_VM_TOOLS        none | core | full   (default core)
+#   HOPLON_VM_TOOLS        none | base | core | full   (default base)
+#                          base is minimal and installs tools on demand through
+#                          hoplon-tool; core and full preload the arsenal
 #   HOPLON_VM_RAM          guest RAM in MiB      (default 4096)
 #   HOPLON_VM_CPUS         guest vCPUs           (default 4)
 #   HOPLON_VM_DISK         disk size after resize (default 20G)
@@ -73,7 +75,7 @@ LOG_FILE="$VM_DIR/vm.log"
 KEY_RECORD="$VM_DIR/ssh_private_key_path"
 KNOWN_HOSTS="$VM_DIR/known_hosts"
 
-VM_TOOLS="${HOPLON_VM_TOOLS:-core}"
+VM_TOOLS="${HOPLON_VM_TOOLS:-base}"
 VM_RAM="${HOPLON_VM_RAM:-4096}"
 VM_CPUS="${HOPLON_VM_CPUS:-4}"
 VM_DISK="${HOPLON_VM_DISK:-20G}"
@@ -434,8 +436,8 @@ cmd_create() {
     *) die "create: unknown argument: $1" ;;
   esac
   case "$VM_TOOLS" in
-    none | core | full) ;;
-    *) die "HOPLON_VM_TOOLS must be none, core, or full (got: $VM_TOOLS)" ;;
+    none | base | core | full) ;;
+    *) die "HOPLON_VM_TOOLS must be none, base, core, or full (got: $VM_TOOLS)" ;;
   esac
 
   need_cmd curl
@@ -673,8 +675,12 @@ Usage:
 
 Provisioning is controlled by HOPLON_VM_TOOLS:
   none   base packages only; skips the toolchain and the Hoplon install
-  core   run scripts/toolchain.sh --core, then install Hoplon   (default)
-  full   run scripts/toolchain.sh --full, then install Hoplon
+  base   minimal guest; install Hoplon and hoplon-tool for on-demand tools (default)
+  core   run scripts/toolchain.sh --core, then install Hoplon (preloaded)
+  full   run scripts/toolchain.sh --full, then install Hoplon (preloaded)
+
+With base, the guest fetches a tool only when it is needed: run
+`hoplon-tool install NAME` in the guest, or let the missing-command hook do it.
 
 See the header of this script for the full environment reference.
 EOF

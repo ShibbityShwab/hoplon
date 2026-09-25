@@ -37,17 +37,44 @@ scripts/vm.sh destroy    # remove the VM state
 
 ## What the guest gets
 
-cloud-init provisions the guest on first boot: it installs the base packages,
-runs `scripts/toolchain.sh` when `HOPLON_VM_TOOLS` is `core` or `full`, and
-installs Hoplon so the `hoplon` command exists for the `hoplon` user. `core` is
+cloud-init provisions the guest on first boot. The default mode is `base`: it
+installs a minimal package set (`ca-certificates`, `curl`, `git`, `jq`,
+`ripgrep`, `python3`, `python3-venv`, `python3-pip`, `pipx`, `unzip`, `xz-utils`,
+`tmux`), clones and installs Hoplon, links `hoplon-tool` into
+`/usr/local/bin`, and writes the on-demand shell hook to
+`/etc/profile.d/hoplon-autotool.sh`. No red-team tool is fetched until it is
+needed.
+
+Set `HOPLON_VM_TOOLS=core` or `full` to preload instead: cloud-init runs
+`scripts/toolchain.sh --core` or `--full` before installing Hoplon. `core` is
 the modest base set; `full` adds the wider red-team toolset. Set
 `HOPLON_VM_TOOLS=none` for a bare guest (no toolchain, no Hoplon install).
+
+## Tools on demand
+
+Inside the guest, `hoplon-tool` installs a tool only when it is needed:
+
+| Command | Effect |
+| --- | --- |
+| `hoplon-tool list` | print every known tool name |
+| `hoplon-tool install NAME [...]` | install exactly those tools |
+| `hoplon-tool install base` | install the minimal core package set |
+| `hoplon-tool install all` | install the full red-team toolset |
+| `hoplon-tool known NAME` | exit 0 when NAME is a known tool |
+| `hoplon-tool suggest NAME` | print the tool that provides NAME |
+| `hoplon-tool status` | print which tools are already present |
+
+The `/etc/profile.d/hoplon-autotool.sh` hook fires when the shell cannot find a
+command. If the command is a known tool and `HOPLON_AUTO_INSTALL` is not `0`, it
+installs the tool with `hoplon-tool` and runs the command. Otherwise it prints a
+one-line hint. Set `HOPLON_AUTO_INSTALL=0` inside the guest to only suggest the
+install command and never install automatically. See [Tooling](tooling.md).
 
 ## Knobs
 
 | Variable | Default | Effect |
 | --- | --- | --- |
-| `HOPLON_VM_TOOLS` | `core` | toolchain in the guest: none, core, or full |
+| `HOPLON_VM_TOOLS` | `base` | toolchain in the guest: none, base, core, or full |
 | `HOPLON_VM_RAM` | `4096` | guest memory in MiB |
 | `HOPLON_VM_CPUS` | `4` | guest vCPUs |
 | `HOPLON_VM_ACCEL` | auto by host | QEMU accelerator: kvm, hvf, whpx, or tcg |
@@ -62,3 +89,8 @@ the modest base set; `full` adds the wider red-team toolset. Set
 The Debian guest provisions quickly and is easy to change live, but it drifts
 with the cloud image and the toolchain script. Pin `HOPLON_VM_IMAGE_URL` and
 rerun `scripts/toolchain.sh` on a fresh guest to keep it reproducible.
+
+The default `base` guest stays small and fetches each tool over the network the
+first time it is used, so the on-demand path needs connectivity at that moment.
+`core` and `full` trade disk and boot time for a guest that is preloaded and
+then works offline.
