@@ -24,6 +24,8 @@
 #   * scoutsuite -> `pipx install scoutsuite`
 #   * sliver     -> `go install` from source or fetch a release inside the guest
 #   * PEASS (linpeas/winpeas) -> not packaged, out of scope for this file
+#   * patator    -> its oracle extra (cx-oracle) fails to build against the
+#                   packaged instantclient; use `pipx install patator` in-guest
 # =============================================================================
 {
   pkgs,
@@ -90,7 +92,6 @@
     john
     thc-hydra
     medusa
-    python3Packages.patator
     crunch
     cewl
     aircrack-ng
