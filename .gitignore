@@ -35,6 +35,10 @@
 /vm/known_hosts
 /vm/id_ed25519
 /vm/id_ed25519.pub
+/vm/ssh_private_key_path
+
+# Nix build output symlink
+/result
 
 # Local runtime junk
 *.log
