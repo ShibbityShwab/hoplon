@@ -28,15 +28,19 @@ Hoplon is an OpenCode distribution for authorized offensive security work. It ru
 
 ## Quickstart
 
-Install with one command:
+Two commands from a clone to a working session:
 
 ```bash
 git clone https://github.com/ShibbityShwab/hoplon.git hoplon
 cd hoplon
-scripts/install.sh      # fetch opencode and link the `hoplon` command
-cp .env.example .env    # then set VENICE_API_KEY
-hoplon
+scripts/install.sh      # fetch the runtime and link the `hoplon` command
+hoplon                  # start the console
 ```
+
+`./hoplon setup` is the same path as one command: it runs the installer when the
+runtime is missing, creates `.env` (mode 600) and prompts once for the key with
+hidden input, optionally pre-builds the guest, then prints the environment
+report. Re-running it is safe and quick.
 
 `scripts/install.sh` fetches the pinned opencode binary into `bin/` (the
 1.18.25 linux-x64 archive is verified against a built-in SHA-256), then links
@@ -49,6 +53,7 @@ From then on the launcher is just `hoplon`, from any directory:
 ```bash
 hoplon                   # start the TUI in the current directory
 hoplon /path/to/project  # work in another project directory
+hoplon setup             # fetch the runtime, write .env, report
 hoplon doctor            # report what this box can actually do
 hoplon version           # print the Hoplon and opencode versions
 hoplon update            # pull Hoplon and re-fetch the runtime in place
@@ -57,28 +62,27 @@ hoplon update            # pull Hoplon and re-fetch the runtime in place
 `hoplon <directory>` passes the directory to OpenCode as its project, so you can
 point Hoplon at any repo without changing your own working directory first.
 
-To run the same stack inside the QEMU guest instead, run
-`HOPLON_ISOLATION=vm ./hoplon`: it creates the guest if needed, boots it, and
-opens a shell. Run `hoplon` there. See [QEMU guest](docs/vm.md).
+To run the same stack inside the QEMU guest, add one word:
 
-Run `hoplon doctor` first on a new box to see what the environment can actually
-do.
+```bash
+hoplon vm                # create if needed, boot, and land in the guest console
+```
 
-### Toggles
+`hoplon vm` is the guest equivalent of `HOPLON_ISOLATION=vm ./hoplon`, except it
+opens the Hoplon console inside the guest instead of a shell. See
+[QEMU guest](docs/vm.md).
 
-Set these in `.env` (the launcher reads it as data, never as shell) or in the
-environment:
+### You only need these three settings
 
-| Variable | Effect |
-| --- | --- |
-| `HOPLON_ISOLATION=host\|vm` | where the stack runs: this machine or a Debian QEMU guest |
-| `HOPLON_VM_TOOLS=none\|base\|core\|full` | guest tooling: bare `none`, minimal `base` with on-demand installs (default), or a preloaded `core`/`full` arsenal |
-| `HOPLON_AUTO_INSTALL=0` | in the guest, only suggest a missing tool instead of installing it |
-| `HOPLON_ENABLE_OMO=0` | run plain OpenCode; drops the OMO plugin and its takeover |
-| `HOPLON_VM_ACCEL=kvm\|hvf\|whpx\|tcg` | force the QEMU accelerator instead of auto-detecting it per host |
-| `HOPLON_OMO_TAKEOVER=0` | leave a conflicting host `~/.omo/omo.jsonc` alone and let it win |
-| `HOPLON_BIN_DIR` | where `scripts/install.sh` links the `hoplon` command |
-| `HOPLON_OPENCODE_VERSION` | opencode release to fetch; `latest` tracks the newest |
+- `VENICE_API_KEY`: your Venice key. Required, and `hoplon setup` prompts for it
+  and writes it to `.env` with mode 600.
+- `HOPLON_ISOLATION`: leave it unset to run on this machine, or set `vm` to run
+  in the guest.
+- `hoplon vm`: the one-word shortcut for the guest console, instead of setting
+  `HOPLON_ISOLATION` by hand.
+
+Every other value has a sane default. For the full set, see
+[Configuration](docs/configuration.md).
 
 <p align="center">
   <img src="docs/assets/tui.png" alt="The Hoplon TUI on the iron hoplon theme" width="900">

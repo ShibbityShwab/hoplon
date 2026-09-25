@@ -26,6 +26,8 @@
 #   hoplon                   start the TUI in the current directory
 #   hoplon <project>         start the TUI on a project directory
 #   hoplon run "..."         one-shot prompt
+#   hoplon setup             fetch the runtime, write .env, report, then exit
+#   hoplon vm [args...]      start the console inside the QEMU guest
 #   hoplon doctor            report what this environment can do, then exit
 #   hoplon version           print the Hoplon and opencode versions, then exit
 #   hoplon update            update Hoplon in place (scripts/update.sh)
@@ -80,6 +82,225 @@ export HOPLON_HOST_HOME
 # through .env. The loader itself lives in scripts/env.sh.
 
 # ---------------------------------------------------------------------------
+# Informational helpers. Defined before the update and setup entry points so
+# both can report without seeding or launching.
+# ---------------------------------------------------------------------------
+_hoplon_have() { command -v "$1" > /dev/null 2>&1 && printf 'yes' || printf 'NO'; }
+
+_hoplon_version_file() {
+  if [ -f "$HOPLON_HOME/VERSION" ]; then
+    tr -d '[:space:]' < "$HOPLON_HOME/VERSION"
+  else
+    printf 'unknown'
+  fi
+}
+
+_hoplon_doctor() {
+  printf 'hoplon doctor\n'
+  printf '  repo                %s\n' "$HOPLON_HOME"
+  printf '  opencode            %s\n' "$([ -x "$HOPLON_HOME/bin/opencode" ] && "$HOPLON_HOME/bin/opencode" --version 2> /dev/null || echo missing)"
+  printf '  VENICE_API_KEY      %s\n' "$([ -n "${VENICE_API_KEY:-}" ] && echo set || echo MISSING)"
+  printf '  node / npx          %s / %s\n' "$(_hoplon_have node)" "$(_hoplon_have npx)"
+  printf '  uvx (python MCP)    %s\n' "$(_hoplon_have uvx)"
+  printf '  docker (docker MCP) %s\n' "$(_hoplon_have docker)"
+  printf '  weapons             '
+  for _b in nmap nuclei sqlmap ffuf msfconsole ghidra; do printf '%s:%s ' "$_b" "$(_hoplon_have "$_b")"; done
+  printf '\n'
+  printf '  venice reachable    '
+  if command -v curl > /dev/null 2>&1 && curl -fsS --max-time 6 https://api.venice.ai/api/v1/models > /dev/null 2>&1; then
+    printf 'yes\n'
+  else
+    printf 'no (offline or curl missing)\n'
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# `hoplon setup`: one command from clone to a working session. Ensures the
+# runtime, the .env file, and optionally the guest image, then reports. Every
+# step is skipped when it is already satisfied, so it is safe to re-run.
+#
+# It runs BEFORE HOME is isolated so scripts/install.sh sees the real account
+# home and links the `hoplon` command onto the real PATH, exactly as if the
+# operator had run the installer directly. That keeps the installer's host
+# cache vendoring and its HOPLON_BIN_DIR default intact.
+# ---------------------------------------------------------------------------
+
+# Print the value of NAME from a dotenv file, or nothing. Read as data: only
+# NAME=value at column 0 is honored, and surrounding quotes are stripped.
+_hoplon_env_value() {
+  local file="$1" name="$2" line value
+  [ -f "$file" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    case "$line" in
+      "$name="*)
+        value="${line#*=}"
+        case "$value" in
+          \'*\') value="${value#\'}" && value="${value%\'}" ;;
+          \"*\") value="${value#\"}" && value="${value%\"}" ;;
+        esac
+        printf '%s' "$value"
+        return 0
+        ;;
+    esac
+  done < "$file"
+  return 0
+}
+
+# Set NAME=value in a dotenv file, preserving every other line, and write it
+# owner-only. Creates the key when absent and collapses duplicate NAME lines.
+_hoplon_env_set() {
+  local file="$1" name="$2" value="$3"
+  local tmp="${file}.hoplon-set.$$" found=0 line
+  : > "$tmp" || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      "$name="*)
+        if [ "$found" -eq 0 ]; then
+          printf '%s=%s\n' "$name" "$value" >> "$tmp"
+          found=1
+        fi
+        ;;
+      *) printf '%s\n' "$line" >> "$tmp" ;;
+    esac
+  done < "$file"
+  if [ "$found" -eq 0 ]; then
+    printf '%s=%s\n' "$name" "$value" >> "$tmp"
+  fi
+  chmod 600 "$tmp" 2> /dev/null || true
+  mv -f "$tmp" "$file" || {
+    rm -f "$tmp" 2> /dev/null || true
+    return 1
+  }
+  chmod 600 "$file" 2> /dev/null || true
+  return 0
+}
+
+# True when the host can build the guest (a QEMU system binary plus qemu-img).
+_hoplon_qemu_available() {
+  local qemu
+  case "$(uname -m)" in
+    arm64 | aarch64) qemu="qemu-system-aarch64" ;;
+    *) qemu="qemu-system-x86_64" ;;
+  esac
+  command -v "$qemu" > /dev/null 2>&1 && command -v qemu-img > /dev/null 2>&1
+}
+
+# Ensure .env exists (mode 600) and carries VENICE_API_KEY. Prompts once, with
+# hidden input, only on a TTY. The key is never echoed or printed.
+_hoplon_setup_env() {
+  local env_file="$HOPLON_HOME/.env"
+  local example="$HOPLON_HOME/.env.example"
+
+  if [ ! -f "$env_file" ]; then
+    if [ ! -f "$example" ]; then
+      printf 'hoplon: setup failed: %s is missing and there is no .env.example to copy.\n' "$env_file" >&2
+      exit 1
+    fi
+    cp -f "$example" "$env_file" 2> /dev/null || {
+      printf 'hoplon: setup failed: could not create %s from .env.example.\n' "$env_file" >&2
+      exit 1
+    }
+    chmod 600 "$env_file" 2> /dev/null || true
+    printf 'hoplon: created .env from .env.example (mode 600)\n'
+  fi
+
+  if [ -n "$(_hoplon_env_value "$env_file" VENICE_API_KEY)" ]; then
+    printf 'hoplon: VENICE_API_KEY already set in .env\n'
+    return 0
+  fi
+
+  # A scripted run must not hang on a prompt, and there is no TTY to hide input
+  # on, so print the instruction and move on.
+  if [ ! -t 0 ]; then
+    printf 'hoplon: VENICE_API_KEY is empty. Set it in .env before launching:\n'
+    printf '  VENICE_API_KEY=your-key-here    # get one at https://venice.ai\n'
+    return 0
+  fi
+
+  local key=""
+  printf 'Venice API key (input hidden, Enter to skip): '
+  if ! IFS= read -r -s key; then
+    printf '\nhoplon: no key read; set VENICE_API_KEY in .env before launching.\n'
+    return 0
+  fi
+  printf '\n'
+  if [ -z "$key" ]; then
+    printf 'hoplon: skipped; set VENICE_API_KEY in .env before launching.\n'
+    return 0
+  fi
+  if ! _hoplon_env_set "$env_file" VENICE_API_KEY "$key"; then
+    unset key
+    printf 'hoplon: setup failed: could not write VENICE_API_KEY to .env.\n' >&2
+    exit 1
+  fi
+  unset key
+  printf 'hoplon: wrote VENICE_API_KEY to .env (mode 600)\n'
+}
+
+# Offer to pre-build the guest image so `hoplon vm` is instant later. Best
+# effort: a failed build is a warning, never fatal. Only offered when QEMU is
+# usable and the disk does not already exist.
+_hoplon_setup_guest() {
+  [ -x "$HOPLON_HOME/scripts/vm.sh" ] || return 0
+  if [ -f "$HOPLON_HOME/vm/disk.qcow2" ]; then
+    printf 'hoplon: guest image already built\n'
+    return 0
+  fi
+  _hoplon_qemu_available || return 0
+  if [ ! -t 0 ]; then
+    printf 'hoplon: build and boot the guest later with: hoplon vm\n'
+    return 0
+  fi
+
+  local reply=""
+  printf 'Pre-build the QEMU guest image now? [y/N] '
+  if ! IFS= read -r reply; then
+    printf '\n'
+    return 0
+  fi
+  case "$reply" in
+    y | Y | yes | YES | Yes) ;;
+    *)
+      printf 'hoplon: skipping; hoplon vm builds the guest on first use.\n'
+      return 0
+      ;;
+  esac
+
+  printf 'hoplon: building the guest image (downloads about 350 MiB)\n'
+  if ! "$HOPLON_HOME/scripts/vm.sh" create; then
+    printf 'hoplon: warning: guest pre-build failed; run hoplon vm later to retry.\n' >&2
+  fi
+}
+
+_hoplon_setup() {
+  if [ -x "$HOPLON_HOME/bin/opencode" ]; then
+    printf 'hoplon: runtime present (%s)\n' "$HOPLON_HOME/bin/opencode"
+  elif [ -x "$HOPLON_HOME/scripts/install.sh" ]; then
+    printf 'hoplon: runtime missing; running scripts/install.sh\n'
+    "$HOPLON_HOME/scripts/install.sh" || {
+      printf 'hoplon: setup failed: scripts/install.sh did not complete.\n' >&2
+      exit 1
+    }
+  else
+    printf 'hoplon: setup failed: bin/opencode is missing and scripts/install.sh was not found.\n' >&2
+    exit 1
+  fi
+
+  _hoplon_setup_env
+  _hoplon_setup_guest
+
+  # Apply .env so the report below shows VENICE_API_KEY as set.
+  if [ -f "$HOPLON_HOME/scripts/env.sh" ]; then
+    # shellcheck source=/dev/null
+    . "$HOPLON_HOME/scripts/env.sh"
+    hoplon_load_env "$HOPLON_HOME/.env"
+  fi
+  printf '\n'
+  _hoplon_doctor
+}
+
+# ---------------------------------------------------------------------------
 # `hoplon update`: hand off to the updater with the host environment intact.
 # Runs before HOME is isolated so the re-run installer links and seeds against
 # the real account home rather than the isolated one.
@@ -87,6 +308,15 @@ export HOPLON_HOST_HOME
 if [ "${1:-}" = "update" ]; then
   shift
   exec "$HOPLON_HOME/scripts/update.sh" "$@"
+fi
+
+# ---------------------------------------------------------------------------
+# `hoplon setup`: one command from clone to a working session. Runs before HOME
+# is isolated so scripts/install.sh behaves exactly as if run directly.
+# ---------------------------------------------------------------------------
+if [ "${1:-}" = "setup" ]; then
+  _hoplon_setup
+  exit 0
 fi
 
 # ---------------------------------------------------------------------------
@@ -165,37 +395,9 @@ export PATH="$HOPLON_HOME/bin:$PATH"
 # ---------------------------------------------------------------------------
 # Informational commands. These report and exit without seeding or launching,
 # and run before the preflight so `hoplon version` always exits 0 even on a
-# fresh checkout. They must not fall through to opencode.
+# fresh checkout. They must not fall through to opencode. The helpers
+# themselves are defined near the top so `hoplon setup` can reuse the report.
 # ---------------------------------------------------------------------------
-_hoplon_have() { command -v "$1" > /dev/null 2>&1 && printf 'yes' || printf 'NO'; }
-
-_hoplon_version_file() {
-  if [ -f "$HOPLON_HOME/VERSION" ]; then
-    tr -d '[:space:]' < "$HOPLON_HOME/VERSION"
-  else
-    printf 'unknown'
-  fi
-}
-
-_hoplon_doctor() {
-  printf 'hoplon doctor\n'
-  printf '  repo                %s\n' "$HOPLON_HOME"
-  printf '  opencode            %s\n' "$([ -x "$HOPLON_HOME/bin/opencode" ] && "$HOPLON_HOME/bin/opencode" --version 2> /dev/null || echo missing)"
-  printf '  VENICE_API_KEY      %s\n' "$([ -n "${VENICE_API_KEY:-}" ] && echo set || echo MISSING)"
-  printf '  node / npx          %s / %s\n' "$(_hoplon_have node)" "$(_hoplon_have npx)"
-  printf '  uvx (python MCP)    %s\n' "$(_hoplon_have uvx)"
-  printf '  docker (docker MCP) %s\n' "$(_hoplon_have docker)"
-  printf '  weapons             '
-  for _b in nmap nuclei sqlmap ffuf msfconsole ghidra; do printf '%s:%s ' "$_b" "$(_hoplon_have "$_b")"; done
-  printf '\n'
-  printf '  venice reachable    '
-  if command -v curl > /dev/null 2>&1 && curl -fsS --max-time 6 https://api.venice.ai/api/v1/models > /dev/null 2>&1; then
-    printf 'yes\n'
-  else
-    printf 'no (offline or curl missing)\n'
-  fi
-}
-
 case "${1:-}" in
   version | --version)
     printf 'hoplon %s\n' "$(_hoplon_version_file)"
@@ -231,6 +433,20 @@ case "${HOPLON_ISOLATION:-host}" in
     exit 1
     ;;
 esac
+
+# ---------------------------------------------------------------------------
+# `hoplon vm`: run the console inside the QEMU guest. Same backend as
+# HOPLON_ISOLATION=vm, but it lands in the Hoplon TUI rather than a shell.
+# Handled before the preflight so it works without a host opencode binary.
+# ---------------------------------------------------------------------------
+if [ "${1:-}" = "vm" ]; then
+  if [ ! -x "$HOPLON_HOME/scripts/vm.sh" ]; then
+    printf 'hoplon: scripts/vm.sh is missing or not executable.\n' >&2
+    exit 1
+  fi
+  shift
+  exec "$HOPLON_HOME/scripts/vm.sh" console "$@"
+fi
 
 # ---------------------------------------------------------------------------
 # Preflight.

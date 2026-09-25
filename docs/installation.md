@@ -32,6 +32,12 @@ cd hoplon
 scripts/install.sh
 ```
 
+`./hoplon setup` is the one-command path: it runs `scripts/install.sh` when the
+runtime is missing, creates `.env` (mode 600), prompts once for
+`VENICE_API_KEY` with hidden input, optionally pre-builds the guest, and ends
+with the environment report. It is safe to re-run, and it is the recommended
+first command.
+
 `scripts/install.sh` does the following:
 
 1. Reads `.env` as data, never as shell, so a pinned `HOPLON_OPENCODE_SHA256`
@@ -67,6 +73,10 @@ Set them in the environment or in `.env`. The installer reads `.env` as data, so
 a pinned digest there works.
 
 ## Configure the API key
+
+`./hoplon setup` does this for you: it creates `.env` from `.env.example` with
+mode 600 and, on a terminal, prompts once for the key with hidden input. To do
+it by hand instead:
 
 ```bash
 cp .env.example .env
@@ -116,7 +126,8 @@ reachable. It does not seed or launch.
 
 `HOPLON_ISOLATION` chooses where the stack runs. `host` is the default and
 everything above. `vm` hands the whole distribution to a guest with its own
-kernel, filesystem, and user:
+kernel, filesystem, and user. The one-word shortcut `hoplon vm` runs the guest
+path and lands in the console inside it:
 
 | Value | What it runs | Requirements | Page |
 | --- | --- | --- | --- |

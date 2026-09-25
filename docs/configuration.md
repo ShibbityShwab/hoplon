@@ -11,6 +11,28 @@ home on every launch. The repository is the source of truth: edit here, not in
 | `config/tui.json` | `$HOME/.config/opencode/tui.json` | theme and TUI settings |
 | `config/magic-context.jsonc` | `$HOME/.config/cortexkit/magic-context.jsonc` | Magic Context historian model |
 
+## Launcher and guest settings
+
+These select how the launcher runs and how the guest is built. Set them in
+`.env` (read as data, never as shell) or in the environment. Only
+`VENICE_API_KEY` is required; everything here has a sane default.
+
+| Variable | Effect |
+| --- | --- |
+| `VENICE_API_KEY` | your Venice key; required, written to `.env` by `hoplon setup` |
+| `HOPLON_ISOLATION=host\|vm` | where the stack runs: this machine or a Debian QEMU guest |
+| `HOPLON_VM_TOOLS=none\|base\|core\|full` | guest tooling: bare `none`, minimal `base` with on-demand installs (default), or a preloaded `core`/`full` arsenal |
+| `HOPLON_AUTO_INSTALL=0` | in the guest, only suggest a missing tool instead of installing it |
+| `HOPLON_ENABLE_OMO=0` | run plain OpenCode; drops the OMO plugin and its takeover |
+| `HOPLON_VM_ACCEL=kvm\|hvf\|whpx\|tcg` | force the QEMU accelerator instead of auto-detecting it per host |
+| `HOPLON_OMO_TAKEOVER=0` | leave a conflicting host `~/.omo/omo.jsonc` alone and let it win |
+| `HOPLON_BIN_DIR` | where `scripts/install.sh` links the `hoplon` command |
+| `HOPLON_OPENCODE_VERSION` | opencode release to fetch; `latest` tracks the newest |
+
+The QEMU guest knobs (`HOPLON_VM_RAM`, `HOPLON_VM_CPUS`, `HOPLON_VM_DISK`,
+`HOPLON_VM_SSH_KEY`, `HOPLON_VM_SSH_PORT`, `HOPLON_VM_SSH_TIMEOUT`,
+`HOPLON_VM_SHARE`, and the rest) are listed in [QEMU guest](vm.md).
+
 ## config/opencode.jsonc
 
 This is the main file. It is JSONC, so comments are allowed.

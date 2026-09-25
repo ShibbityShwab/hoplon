@@ -17,6 +17,9 @@
 #   vm.sh stop               power the VM off (SIGTERM, then SIGKILL)
 #   vm.sh status             show VM state
 #   vm.sh ssh [-- cmd...]    wait for sshd, then open an SSH session
+#   vm.sh run [-- cmd...]    create if needed, boot, then open a shell (default)
+#   vm.sh console [args...]  create if needed, boot, then run the Hoplon console
+#                            inside the guest; --shell opens a shell instead
 #   vm.sh destroy            remove the VM disk, seed, logs, and generated key
 #   vm.sh help
 #
@@ -95,6 +98,7 @@ VM_CPU=""
 # SSH key material resolved by resolve_ssh_key.
 SSH_KEY=""
 SSH_KEY_PUB=""
+VM_SSH_KEY_PATH=""
 
 log() { printf 'vm: %s\n' "$*"; }
 warn() { printf 'vm: %s\n' "$*" >&2; }
@@ -644,21 +648,21 @@ vm_ssh_probe() {
     hoplon@127.0.0.1 true > /dev/null 2>&1
 }
 
-cmd_ssh() {
-  need_cmd ssh
-  [ "${1:-}" = "--" ] && shift
-  [ -f "$DISK" ] || die "no VM found; run: $0 create"
-  vm_running || die "VM is not running; run: $0 start"
-
-  local key
+# Resolve the private key to use for the guest connection into VM_SSH_KEY_PATH.
+# Prefers the path recorded at create time, else resolves the host or a
+# generated key. Kept as a global so the resolver's log lines are not captured.
+vm_private_key() {
   if [ -f "$KEY_RECORD" ]; then
-    key="$(cat "$KEY_RECORD")"
+    VM_SSH_KEY_PATH="$(cat "$KEY_RECORD")"
   else
     resolve_ssh_key
-    key="$SSH_KEY"
+    VM_SSH_KEY_PATH="$SSH_KEY"
   fi
-  [ -f "$key" ] || die "SSH private key not found: $key"
+}
 
+# Wait until sshd accepts the key on the forwarded port. $1 is the private key.
+wait_for_ssh() {
+  local key="$1"
   log "waiting for sshd on 127.0.0.1:$VM_SSH_PORT (up to ${VM_SSH_TIMEOUT}s)"
   local deadline ok
   deadline=$((SECONDS + VM_SSH_TIMEOUT))
@@ -672,12 +676,74 @@ cmd_ssh() {
   done
   [ "$ok" -eq 1 ] || die "timed out waiting for SSH on port $VM_SSH_PORT; see $LOG_FILE"
   log "ssh ready"
+}
 
+# Open an SSH session in the guest. Extra arguments become the remote command.
+vm_ssh_session() {
+  local key="$1"
+  shift
   exec ssh -p "$VM_SSH_PORT" -i "$key" \
     -o StrictHostKeyChecking=accept-new \
     -o UserKnownHostsFile="$KNOWN_HOSTS" \
     -o ConnectTimeout=10 \
     hoplon@127.0.0.1 "$@"
+}
+
+cmd_ssh() {
+  need_cmd ssh
+  [ "${1:-}" = "--" ] && shift
+  [ -f "$DISK" ] || die "no VM found; run: $0 create"
+  vm_running || die "VM is not running; run: $0 start"
+
+  vm_private_key
+  [ -f "$VM_SSH_KEY_PATH" ] || die "SSH private key not found: $VM_SSH_KEY_PATH"
+
+  wait_for_ssh "$VM_SSH_KEY_PATH"
+  vm_ssh_session "$VM_SSH_KEY_PATH" "$@"
+}
+
+# `console`: create if needed, boot, then run the Hoplon TUI in the guest. A
+# first boot is still provisioning cloud-init, so if Hoplon is not on PATH yet
+# say so and stop; open a plain shell only when --shell is passed.
+cmd_console() {
+  need_cmd ssh
+  local want_shell=0
+  case "${1:-}" in
+    --shell | -s)
+      want_shell=1
+      shift
+      ;;
+  esac
+  [ -f "$DISK" ] || die "no VM found; run: $0 create"
+  vm_running || die "VM is not running; run: $0 start"
+
+  vm_private_key
+  [ -f "$VM_SSH_KEY_PATH" ] || die "SSH private key not found: $VM_SSH_KEY_PATH"
+
+  wait_for_ssh "$VM_SSH_KEY_PATH"
+
+  if [ "$want_shell" -eq 1 ]; then
+    [ "${1:-}" = "--" ] && shift
+    vm_ssh_session "$VM_SSH_KEY_PATH" "$@"
+  fi
+
+  if ! ssh -p "$VM_SSH_PORT" -i "$VM_SSH_KEY_PATH" \
+    -o BatchMode=yes \
+    -o StrictHostKeyChecking=accept-new \
+    -o UserKnownHostsFile="$KNOWN_HOSTS" \
+    -o ConnectTimeout=10 \
+    hoplon@127.0.0.1 'command -v hoplon' > /dev/null 2>&1; then
+    warn "the guest is still provisioning: the hoplon command is not on PATH yet"
+    warn "wait a minute and rerun, or run hoplon-tool inside the guest"
+    warn "for a plain shell now, run: $0 console --shell"
+    exit 1
+  fi
+
+  exec ssh -t -p "$VM_SSH_PORT" -i "$VM_SSH_KEY_PATH" \
+    -o StrictHostKeyChecking=accept-new \
+    -o UserKnownHostsFile="$KNOWN_HOSTS" \
+    -o ConnectTimeout=10 \
+    hoplon@127.0.0.1 hoplon "$@"
 }
 
 cmd_destroy() {
@@ -701,7 +767,10 @@ cmd_help() {
 Hoplon QEMU VM backend.
 
 Usage:
-  vm.sh                    create if needed, boot, and open a session (default)
+  vm.sh                    create if needed, boot, and open a shell (default)
+  vm.sh run [-- cmd...]    same as the default: open a shell in the guest
+  vm.sh console [args...]  create if needed, boot, then run the Hoplon console
+                           inside the guest; --shell opens a shell instead
   vm.sh create [--force]   download the Debian cloud image, build disk.qcow2,
                            render vm/cloud-init into seed.iso
   vm.sh start              boot the VM (hardware or software acceleration)
@@ -731,12 +800,20 @@ main() {
   fi
   case "$cmd" in
     run)
-      # Default path: ensure the guest exists, boot it, and open the session.
+      # Default path: ensure the guest exists, boot it, and open a shell.
       resolve_host_arch
       validate_env
       [ -f "$DISK" ] || cmd_create
       cmd_start
       cmd_ssh "$@"
+      ;;
+    console)
+      # Same as run, but lands in the Hoplon console instead of a shell.
+      resolve_host_arch
+      validate_env
+      [ -f "$DISK" ] || cmd_create
+      cmd_start
+      cmd_console "$@"
       ;;
     create)
       resolve_host_arch

@@ -1,7 +1,8 @@
 # QEMU guest
 
-`HOPLON_ISOLATION=vm` runs the whole stack inside a Debian QEMU guest with its
-own kernel, filesystem, and user. Nothing the guest does reaches the host OS.
+`HOPLON_ISOLATION=vm` (or the one-word `hoplon vm`) runs the whole stack inside
+a Debian QEMU guest with its own kernel, filesystem, and user. Nothing the guest
+does reaches the host OS.
 This is the guest tier: the `host` tier shares the host kernel, while this guest
 has its own. QEMU is the one virtualization layer present on Linux, macOS, and
 Windows, so this is the single cross-platform isolation model.
@@ -24,23 +25,30 @@ software emulation is slow.
 
 ## Create and run
 
-Run `scripts/vm.sh` with no arguments to boot and connect: it creates the guest
-if it does not exist, starts it if it is stopped, waits for SSH on
-127.0.0.1:2222, and opens a shell. `HOPLON_ISOLATION=vm ./hoplon` does the same
-through the launcher.
+`hoplon vm` is the shortest path: it creates the guest if it does not exist,
+starts it if it is stopped, waits for SSH on 127.0.0.1:2222, and then runs the
+Hoplon console inside the guest. It is the guest equivalent of
+`HOPLON_ISOLATION=vm ./hoplon`, except it lands in the TUI rather than a shell.
+If the first boot is still provisioning and `hoplon` is not on the guest PATH
+yet, `vm.sh console` says so and stops; pass `--shell` for a plain shell.
 
 ```bash
-scripts/vm.sh            # create if needed, boot, then open a shell
-scripts/vm.sh create     # download the Debian cloud image, build the seed
-scripts/vm.sh start      # boot it headless
-scripts/vm.sh ssh        # open the guest (waits for SSH on 127.0.0.1:2222)
-scripts/vm.sh status     # state, disk, pid
-scripts/vm.sh stop       # shut it down
-scripts/vm.sh destroy    # remove the VM state
+hoplon vm                 # create if needed, boot, run the guest console
+scripts/vm.sh console     # same thing from scripts/vm.sh
+scripts/vm.sh             # create if needed, boot, then open a shell (default)
+scripts/vm.sh run         # same as the default: open a shell
+scripts/vm.sh create      # download the Debian cloud image, build the seed
+scripts/vm.sh start       # boot it headless
+scripts/vm.sh ssh         # open the guest (waits for SSH on 127.0.0.1:2222)
+scripts/vm.sh status      # state, disk, pid
+scripts/vm.sh stop        # shut it down
+scripts/vm.sh destroy     # remove the VM state
 ```
 
 Every command also runs through the launcher as
-`HOPLON_ISOLATION=vm ./hoplon <subcommand>`.
+`HOPLON_ISOLATION=vm ./hoplon <subcommand>`. The `console` and `run` subcommands
+accept extra arguments as the guest command; `console --shell` opens a shell
+instead of the console.
 
 ## What the guest gets
 

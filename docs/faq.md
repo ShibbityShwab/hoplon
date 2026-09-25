@@ -85,8 +85,8 @@ mode. See [OMO](omo.md).
 No. There is one isolation model: the QEMU virtual machine. The launcher isolates
 state (`HOME`, XDG, credentials) but shares the host kernel, and the permission
 rules are a text denylist, not a containment boundary. For a real boundary, run
-the stack in the guest: `scripts/vm.sh` with no arguments creates and boots it
-and opens a shell, and `HOPLON_ISOLATION=vm ./hoplon` does the same through the
+the stack in the guest: `hoplon vm` creates and boots it and opens the console
+inside the guest, and `HOPLON_ISOLATION=vm ./hoplon` does the same through the
 launcher. See [Isolation](isolation.md) and [QEMU guest](vm.md).
 
 ## Can the agent modify Hoplon or the repo?
@@ -97,9 +97,9 @@ guest, and the host tree is not reachable. See [QEMU guest](vm.md).
 
 ## Can I run it in a VM?
 
-Yes. `HOPLON_ISOLATION=vm ./hoplon` (or `scripts/vm.sh` with no arguments)
-creates the Debian QEMU guest if needed, boots it, and connects. The guest has
-its own kernel, filesystem, and user. See [Isolation](isolation.md) and
+Yes. `hoplon vm` (or `HOPLON_ISOLATION=vm ./hoplon`) creates the Debian QEMU
+guest if needed, boots it, and opens the console inside it. The guest has its
+own kernel, filesystem, and user. See [Isolation](isolation.md) and
 [QEMU guest](vm.md).
 
 ## Does `nmap -sS` work?
@@ -108,6 +108,14 @@ Yes. On the host tier the launcher runs with your account's privileges; give it
 the capability it needs (`sudo` or a root shell). Inside the `vm` guest,
 raw-socket work runs in the guest with the guest's privileges. See
 [QEMU guest](vm.md).
+
+## How do I set up in one command?
+
+Run `./hoplon setup`. It fetches the runtime with `scripts/install.sh` when it is
+missing, creates `.env` (mode 600), prompts once for `VENICE_API_KEY` with hidden
+input, optionally pre-builds the guest image, and ends with the environment
+report. Re-running it is safe and quick. After that, `hoplon` starts the console
+and `hoplon vm` starts it inside the QEMU guest.
 
 ## How do I update?
 

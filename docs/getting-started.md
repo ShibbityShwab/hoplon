@@ -1,9 +1,17 @@
 # Getting started
 
 This is the first-session walkthrough. It assumes you finished
-[Installation](installation.md) and have `VENICE_API_KEY` set in `.env`.
+[Installation](installation.md) and have `VENICE_API_KEY` set in `.env`. If you
+have not done either yet, one command does the install, writes `.env`, and
+prompts for the key:
+
+```bash
+./hoplon setup
+```
 
 ## 1. Check the box
+
+`./hoplon setup` already ends with this report. Run it again any time:
 
 ```bash
 ./hoplon doctor
@@ -79,14 +87,15 @@ When you are about to run risky code or process untrusted content, move the
 stack into the QEMU guest. The guest has its own kernel, filesystem, and user:
 
 ```bash
-HOPLON_ISOLATION=vm ./hoplon
+./hoplon vm
 ```
 
-With no subcommand the launcher delegates to `scripts/vm.sh`, which creates the
-guest if it does not exist, boots it, waits for SSH, and opens a shell. Run
-`hoplon` there to start the console. `scripts/vm.sh` with no arguments does the
-same directly, and the explicit `create`, `start`, and `ssh` subcommands still
-work.
+`hoplon vm` creates the guest if it does not exist, boots it, waits for SSH, and
+opens the Hoplon console inside the guest. If the first boot is still
+provisioning, it says so and stops rather than dropping you into a half-ready
+guest; add `--shell` for a plain shell instead. The explicit `create`, `start`,
+`ssh`, and `run` subcommands still work, and
+`HOPLON_ISOLATION=vm ./hoplon <subcommand>` does the same through the launcher.
 
 The host filesystem is not visible to the guest, so the agent cannot reach the
 host launcher, `scripts/`, `config/`, `.env`, or any host credential. The
