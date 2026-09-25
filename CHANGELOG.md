@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-25
+
 ### Added
 
+- **One-command setup and one-word VM entry.** `hoplon setup` fetches the
+  runtime, writes `.env` at mode 600 and prompts once for the key with hidden
+  input, optionally pre-builds the guest, then reports via `doctor`. `hoplon vm`
+  creates the guest if needed, boots it, and opens the Hoplon console inside.
 - **Expanded offensive toolkit.** The Debian guest ships a broad red-team and
   software-exploitation toolset across recon, web, credentials, Active
   Directory, exploit development, fuzzing, reversing, forensics, network
@@ -33,6 +39,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   command on demand (set `HOPLON_AUTO_INSTALL=0` to only suggest it). `core` and
   `full` remain available to preload the arsenal on first boot. See `docs/vm.md`
   and `docs/tooling.md`.
+
+### Security
+
+- **Audit hardening.** Agent-level `permission: "allow"` was removed, because the
+  harness expands that string to a catch-all rule that silently disables the
+  global bash denylist. `.env` is read through one data-only loader with a
+  dangerous-name denylist, shared by the launcher, the installer, and `vm.sh`;
+  host credentials are scrubbed before `.env` loads; the SSH/GH share links are
+  rebuilt per launch; the OMO backup is guarded against a non-regular path;
+  `HOPLON_VM_SHARE` rejects commas and `HOPLON_VM_IMAGE_URL` is validated; and
+  CI images and documentation dependencies are pinned by digest and hash.
 
 ### Removed
 
@@ -121,5 +138,6 @@ license. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for provenance.
 
 Hoplon itself is licensed AGPL-3.0-or-later.
 
-[Unreleased]: https://github.com/ShibbityShwab/hoplon/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/ShibbityShwab/hoplon/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/ShibbityShwab/hoplon/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ShibbityShwab/hoplon/releases/tag/v1.0.0
