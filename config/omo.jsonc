@@ -6,12 +6,20 @@
 // isolates $HOME into this repo and copies this file to $HOME/.omo/omo.jsonc,
 // so the routing below always applies without touching the host's real config.
 //
-// Every agent and category is routed to a Venice AI *uncensored* model. The
-// 11 uncensored Venice models are the only ones Venice guarantees minimal
-// content filtering on; upstream hosts (Anthropic, OpenAI, Google, xAI) may
-// still filter, so they are avoided here. Sampling follows Venice's published
-// per-model constraints where they exist (qwen-3-6-plus: temperature 0.7,
-// top_p 0.8). Reasoning effort is applied only where a model advertises an
+// OMO is an optional third-party add-on, not part of Hoplon: it is licensed
+// SUL-1.0, developed upstream at code-yeongyu/oh-my-openagent, and is not
+// redistributed here (the launcher loads the pinned npm package). Set
+// HOPLON_ENABLE_OMO=0 in .env to disable it for a session; the launcher then
+// strips the oh-my-openagent plugin line from the seeded OpenCode config, and
+// this file has no effect for that session.
+//
+// Every agent and category is routed to a Venice AI *uncensored* model. Venice
+// marks a subset of its catalog as uncensored, and those are the only models it
+// guarantees minimal content filtering on; upstream hosts (Anthropic, OpenAI,
+// Google, xAI) may still filter, so they are avoided here. Hoplon pins seven of
+// the uncensored models in provider.venice.whitelist. Sampling follows Venice's
+// published per-model constraints where they exist (qwen-3-6-plus: temperature
+// 0.7, top_p 0.8). Reasoning effort is applied only where a model advertises an
 // effort control (qwen-3-8-27b, olafangensan-glm-4.7-flash-heretic); settings
 // on models without one (qwen-3-6-plus) are dropped by the harness, not sent.
 //

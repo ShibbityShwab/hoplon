@@ -9,11 +9,17 @@
 # Isolated HOME and all runtime state
 /home/
 
-# opencode may create these inside config dirs at runtime
-node_modules/
-package.json
-package-lock.json
-bun.lock
+# opencode may create these inside the isolated HOME or bin at runtime. Scoped
+# to /home/ and /bin/ so a real manifest committed at the repo root stays
+# visible.
+/home/**/node_modules/
+/home/**/package.json
+/home/**/package-lock.json
+/home/**/bun.lock
+/bin/**/node_modules/
+/bin/**/package.json
+/bin/**/package-lock.json
+/bin/**/bun.lock
 
 # Local runtime junk
 *.log

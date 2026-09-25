@@ -28,6 +28,11 @@
   // context management. Keep exactly ONE oh-my-openagent entry. Magic Context
   // owns compaction, so config/omo.jsonc keeps OMO's preemptive-compaction
   // hook disabled to avoid two systems compacting at once.
+  //
+  // OMO is optional: HOPLON_ENABLE_OMO=0 in .env makes the launcher strip the
+  // oh-my-openagent line from the copy it seeds into the isolated XDG config
+  // dir for that session. The pinned entry here in the repo is always kept.
+  // See .env.example.
   // ---------------------------------------------------------------------------
   "plugin": [
     "oh-my-openagent@5.0.0-beta.62",
@@ -174,8 +179,10 @@
   // ---------------------------------------------------------------------------
   // Agents: the OpenCode-native roster, all on Venice. The Oh My OpenAgent
   // layer (config/omo.jsonc) tunes the same agents plus its own categories.
-  // The red-team specialists live as markdown in agents/ (loaded via
-  // OPENCODE_CONFIG_DIR by the launcher).
+  // The red-team specialists live as markdown in agents/. The launcher seeds
+  // them into the isolated XDG config dir ($XDG_CONFIG_HOME/opencode/agents)
+  // and unsets OPENCODE_CONFIG_DIR, so they load from the isolated config and
+  // never from a host override.
   // ---------------------------------------------------------------------------
   "agent": {
     "build": {
@@ -208,7 +215,7 @@
     "oracle": {
       "description": "High-IQ read-only consultant for architecture, debugging, and tradeoffs.",
       "mode": "subagent",
-      "model": "venice/aion-labs-aion-3-5",
+      "model": "venice/qwen-3-6-plus",
       "steps": 20,
       "temperature": 0.2,
       "maxTokens": 32768,
