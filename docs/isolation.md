@@ -1,8 +1,10 @@
 # Isolation
 
-Hoplon is portable and isolated. The launcher (`./hoplon`) is the security
-boundary: it never reads or writes the host's OpenCode or OMO state. This page
-describes exactly what it isolates and how.
+Hoplon is portable and isolated. The launcher (`./hoplon`) is the state
+boundary: it never reads or writes the host's OpenCode or OMO state, with the
+temporary OMO takeover as the one exception. With `HOPLON_SANDBOX=1` it is also
+the containment boundary for the filesystem and credentials. This page describes
+what it isolates and how.
 
 ## The isolated home
 
@@ -34,6 +36,31 @@ OPENCODE_TUI_CONFIG  OPENCODE_PERMISSION  OPENCODE_DB
 OPENCODE_MODELS_PATH  OPENCODE_MODELS_URL
 ```
 
+## `.env` is read as data
+
+The launcher reads `.env` as data, never as shell. Only `NAME=value` lines at
+column 0 are honored; surrounding single or double quotes are stripped and the
+value is exported verbatim. Command substitution, backticks, and arithmetic in
+the file never run, so a tampered `.env` cannot execute code on the next launch.
+`scripts/install.sh` uses the same reader.
+
+## Host credential and agent variables are dropped
+
+The isolated HOME hides credential files, but an inherited environment variable
+would carry the same access into the child. Before opencode starts, the launcher
+unsets:
+
+```text
+SSH_AUTH_SOCK  SSH_AGENT_PID  SSH_ASKPASS  GIT_ASKPASS  GPG_AGENT_INFO
+KRB5CCNAME  KRB5_CONFIG  GITHUB_TOKEN  GH_TOKEN
+AWS_ACCESS_KEY_ID  AWS_SECRET_ACCESS_KEY  AWS_SESSION_TOKEN
+DOCKER_HOST  DOCKER_TLS_VERIFY  DOCKER_CERT_PATH  DOCKER_CONTEXT
+```
+
+It also unsets every exported `AZURE_*`, `GOOGLE_*`, or `GCP_*` name, then
+resets `XDG_RUNTIME_DIR` to `$HOME/.run` and `TMPDIR` to `$HOME/tmp` inside the
+isolated home. This runs on every launch, sandboxed or not.
+
 ## Autoupdate and telemetry are off
 
 ```bash
@@ -54,9 +81,13 @@ On every launch the launcher copies config into the isolated home:
 | `config/opencode.jsonc` | `$XDG_CONFIG_HOME/opencode/opencode.jsonc` |
 | `config/tui.json` | `$XDG_CONFIG_HOME/opencode/tui.json` |
 | `config/omo.jsonc` | `$HOME/.omo/omo.jsonc` |
+| `config/magic-context.jsonc` | `$HOME/.config/cortexkit/magic-context.jsonc` |
 | `themes/*.json` | `$XDG_CONFIG_HOME/opencode/themes/` |
 | `agents/*.md` | `$XDG_CONFIG_HOME/opencode/agents/` |
 | `tui/*.tsx` | `$XDG_CONFIG_HOME/opencode/plugins/` |
+
+When `HOPLON_ENABLE_OMO=0`, the launcher skips the `config/omo.jsonc` seed and
+strips the OMO plugin line from the seeded OpenCode config.
 
 It copies rather than symlinks, because OMO rewrites its config with a
 temp-file plus rename replace, which would sever a symlink inode. Copies go
@@ -80,7 +111,8 @@ bundled binary on `PATH`, because opencode's bash tool spawns login shells and
 
 ## Host credentials are absent by design
 
-An isolated home has no host credentials. Two opt-in passthroughs exist:
+An isolated home has no host credentials, and the host credential variables
+above are dropped from the environment. Two opt-in passthroughs exist:
 
 | Variable | Effect |
 | --- | --- |
@@ -116,7 +148,7 @@ Set `HOPLON_OMO_TAKEOVER=0` to disable the takeover and let the host config win.
 
 | Value | Boundary | Kernel | Page |
 | --- | --- | --- | --- |
-| `host` (default) | isolated HOME plus optional bubblewrap | host | [Sandbox](sandbox.md) |
+| `host` (default) | isolated HOME; optional sandbox with a read-only repo | host | [Sandbox](sandbox.md) |
 | `vm` | full Debian guest | own, under QEMU/KVM | [QEMU guest](vm.md) |
 | `nix` | declarative NixOS guest | own, under QEMU/KVM | [NixOS guest](nixos-vm.md) |
 
@@ -129,8 +161,13 @@ Both guests are self-contained and provision their own toolchain.
 - The network. The agent can reach the internet, which the Venice API requires.
 - The target directory you pass on the command line. The launcher binds it in
   the sandbox and uses it as the working directory.
+- The repository itself on the host tier. Without the sandbox the agent can edit
+  the launcher, `scripts/`, `config/`, and `.env`; the sandbox binds the repo
+  read-only.
 - Anything you explicitly pass through with `HOPLON_SHARE_SSH` or
   `HOPLON_SHARE_GH`.
 
-For filesystem isolation beyond the home directory, use the sandbox. See
-[Sandbox](sandbox.md).
+For filesystem isolation beyond the home directory, use the sandbox. For a full
+boundary, step up to a guest tier: `HOPLON_ISOLATION=vm` or `nix` runs the whole
+stack inside a guest with its own kernel. See [Sandbox](sandbox.md),
+[QEMU guest](vm.md), and [NixOS guest](nixos-vm.md).

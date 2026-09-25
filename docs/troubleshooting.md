@@ -23,7 +23,8 @@ cp .env.example .env
 # edit .env, set VENICE_API_KEY
 ```
 
-The launcher sources `.env` on every run, so no shell export is needed.
+The launcher reads `.env` as data on every run, so no shell export is needed and
+a value in the file can never execute as shell.
 
 ## `config/opencode.jsonc is missing`
 
@@ -67,6 +68,49 @@ HOPLON_SANDBOX=0 ./hoplon
 
 Tools in `~/.local/bin`, `~/.cargo/bin`, `~/go/bin`, or `~/.bun/bin` are not
 mounted by default. Set `HOPLON_SANDBOX_BINS=1`.
+
+## The sandbox refuses to launch from `/` or the host home
+
+Launching from `/`, the host home, or an ancestor of the host home would bind an
+entire tree read-write, so the launcher exits with `refusing to sandbox`. Start
+from a project directory instead. To override on purpose:
+
+```bash
+HOPLON_SANDBOX=1 HOPLON_SANDBOX_ALLOW_BROAD=1 ./hoplon
+```
+
+The override prints a warning and binds the broad target read-write.
+
+## Docker or another container runtime fails in the sandbox
+
+`/run` is an empty tmpfs inside the sandbox, so the Docker socket, containerd,
+podman, dbus, and `/run/user` are not visible. The Docker-backed MCP servers
+(`nuclei`, `sqlmap`, `ffuf`, `ghidra`) cannot reach a host daemon from inside.
+Run those unsandboxed, or use a guest tier where the daemon runs in the guest.
+
+## `HOPLON_ISOLATION=vm` fails
+
+The VM backend needs `qemu-system-x86_64`, `qemu-img`, `xorriso`, `ssh-keygen`,
+and a writable `/dev/kvm`. Build the guest before booting it:
+
+```bash
+scripts/vm.sh create
+scripts/vm.sh start
+```
+
+See [QEMU guest](vm.md).
+
+## `HOPLON_ISOLATION=nix` fails
+
+`nix` must be on `PATH` with flakes enabled. `scripts/nix-vm.sh` prints the
+install commands and exits non-zero when it is missing. `/dev/kvm` enables
+acceleration; without it QEMU emulates and the boot is slow. See
+[NixOS guest](nixos-vm.md).
+
+## `invalid HOPLON_ISOLATION=...`
+
+Only `host`, `vm`, and `nix` are accepted. Any other value exits with an error
+before launch.
 
 ## An MCP server does not start
 

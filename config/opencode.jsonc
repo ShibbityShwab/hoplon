@@ -60,7 +60,7 @@
     "websearch": "allow",
     "lsp": "allow",
     "doom_loop": "allow",
-    "external_directory": "allow",
+    "external_directory": "ask",
     // Patterns match each parsed sub-command, so "a && rm -rf /" still matches
     // the "rm -rf /" node, and the last matching rule wins (specifics sit after
     // the "*" catch-all). Prefixes are broad because a literal "rm -rf *" misses
@@ -81,7 +81,18 @@
       "*sudo *": "ask",
       "*:(){*": "ask",
       "git push*--force*": "ask",
-      "git push*-f*": "ask"
+      "git push*-f*": "ask",
+      // Wrapper and interpreter guards: stop a guarded command (rm, dd, chmod)
+      // from being reached through bash/sh/python/perl -c, a pipe, or an
+      // absolute path, which would otherwise match only the "*" allow. These
+      // sit last so they win over the allow above.
+      "*bash *-c*": "deny",
+      "*sh *-c*": "deny",
+      "*/bin/rm*": "deny",
+      "command rm*": "deny",
+      "*python*-c*": "deny",
+      "*perl *-e*": "deny",
+      "*| *sh*": "deny"
     }
   },
 
@@ -433,7 +444,7 @@
   "experimental": {
     "batch_tool": true,
     "openTelemetry": false,
-    "continue_loop_on_deny": true,
+    "continue_loop_on_deny": false,
     "mcp_timeout": 30000,
     "primary_tools": ["edit", "bash", "task", "write"]
   },

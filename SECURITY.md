@@ -58,6 +58,8 @@ In scope for this policy:
 - The launcher (`hoplon`) and its isolation model: `HOME` and XDG isolation,
   environment scrubbing, the OMO config takeover and restore, and the sandbox
   wrapper.
+- The isolation backends: `scripts/vm.sh`, `scripts/nix-vm.sh`, `flake.nix` and
+  the NixOS guest configuration, and `scripts/toolchain.sh`.
 - `scripts/install.sh`: download, checksum verification, and install-by-rename.
 - The configuration in `config/`: permissions, provider wiring, MCP servers,
   and the rules-of-engagement gate.
@@ -101,7 +103,9 @@ See the license for the full terms.
 
 ## Hardening notes
 
-The README's Hardening section documents the current mitigations and their
-limits. In short: run engagements on a disposable box, use `HOPLON_SANDBOX=1`
-when handling untrusted content, treat `VENICE_API_KEY` as exposed to the model
-because bash is allowed, and keep the key scoped.
+The [Security page](docs/security.md) documents the current mitigations and
+their limits. In short: run engagements on a disposable box, use
+`HOPLON_SANDBOX=1` when handling untrusted content, step up to
+`HOPLON_ISOLATION=vm` or `nix` when you need a kernel boundary, treat
+`VENICE_API_KEY` as exposed to the model because bash is allowed, and keep the
+key scoped.

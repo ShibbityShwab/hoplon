@@ -65,6 +65,10 @@ For the Docker servers, build and tag the images locally:
 docker build -t nuclei-mcp:latest .
 ```
 
+The Docker-backed servers need a reachable daemon. Inside `HOPLON_SANDBOX=1`
+they cannot reach one, because `/run` is an empty tmpfs; run them unsandboxed or
+in a guest tier. See [Sandbox](sandbox.md).
+
 For `metasploit` and `bloodhound`, clone the checkouts under `/opt` and set the
 matching password in `.env`.
 

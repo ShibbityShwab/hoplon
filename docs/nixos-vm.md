@@ -27,6 +27,9 @@ scripts/nix-vm.sh run     # same as nix run .#vm, with a nix check
 nix run path:.#vm   # use path: when the flake files are untracked by git
 ```
 
+`hoplon` with `HOPLON_ISOLATION=nix` delegates to `scripts/nix-vm.sh`, which
+defaults to `run`.
+
 Guest `hoplon-vm`: DHCP, firewall open on port 22 only, 4 vCPU, 4 GiB RAM, 30
 GiB disk, and guest port 22 forwarded to `127.0.0.1:2222`.
 

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Isolation tiers.** `HOPLON_ISOLATION=host|vm|nix` selects where the stack
+  runs: the isolated home on this machine, a Debian QEMU/KVM guest, or a
+  declarative NixOS guest. The launcher hands off to the matching backend.
+- **Debian QEMU/KVM guest.** `scripts/vm.sh` creates, boots, and destroys a
+  Debian cloud-image guest provisioned by cloud-init. `HOPLON_VM_TOOLS` and the
+  VM knobs are documented in `docs/vm.md`.
+- **NixOS guest.** `flake.nix` emits a bootable VM (`nix run .#vm`) and a qcow2
+  image (`nix build .#qcow2`) from pinned Nix inputs; `scripts/nix-vm.sh` wraps
+  both.
+- **Shared toolchain installer.** `scripts/toolchain.sh` provisions the
+  red-team toolbox on Debian and Ubuntu, used by the QEMU guest. The NixOS guest
+  pins the same toolset in `nix/toolchain.nix`.
+
 ## [1.0.0] - 2026-09-25
 
 First release. Hoplon is a portable, uncensored, red-team-focused OpenCode
@@ -18,7 +33,8 @@ harness.
 - **Portable, isolated launcher.** `./hoplon` sets `HOME` to `./home` and
   points all four XDG variables inside it, unsets host `OPENCODE_*` selectors,
   disables autoupdate and OMO telemetry, and hands off to the bundled opencode
-  binary. Hoplon never reads or writes the host's OpenCode or OMO state.
+  binary. Hoplon never reads or writes the host's OpenCode or OMO state, except
+  the OMO config takeover, which is restored on exit.
 - **Venice-only uncensored whitelist.** Every model route points at Venice AI's
   uncensored family through the built-in venice provider. The provider whitelist
   restricts the catalog to the seven uncensored models, and any other id is
@@ -34,7 +50,7 @@ harness.
   set, whether `bwrap` is available, which MCP runtimes exist, which weapon
   binaries are installed, and whether Venice is reachable.
 - **Magic Context.** Long-session context management is handled by
-  `@cortexkit/opencode-magic-context@0.42.2`, with OMO's own preemptive
+  `@cortexkit/opencode-magic-context@0.43.1`, with OMO's own preemptive
   compaction hook disabled so two systems do not compact at once.
 - **Red-team roster.** Six specialist subagents (recon, web-attacker,
   ad-attacker, exploit-dev, reverser, report-writer) and five offense skills,
@@ -78,7 +94,7 @@ license. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for provenance.
   fetched by the installer and not committed.
 - **Oh My OpenAgent** (<https://github.com/code-yeongyu/oh-my-openagent>):
   version `5.0.0-beta.62`, loaded as an OpenCode plugin.
-- **Magic Context** (`@cortexkit/opencode-magic-context@0.42.2`): long-session
+- **Magic Context** (`@cortexkit/opencode-magic-context@0.43.1`): long-session
   context management.
 - **Venice AI MCP server** (`@veniceai/mcp-server@0.2.0`, MIT,
   <https://github.com/veniceai/venice-mcp-server>): wired into

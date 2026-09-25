@@ -1,6 +1,6 @@
 # Configuration
 
-Hoplon's configuration is three files in `config/`, seeded into the isolated
+Hoplon's configuration is four files in `config/`, seeded into the isolated
 home on every launch. The repository is the source of truth: edit here, not in
 `./home`, because the launcher overwrites the seeded copies.
 
@@ -9,6 +9,7 @@ home on every launch. The repository is the source of truth: edit here, not in
 | `config/opencode.jsonc` | `$HOME/.config/opencode/opencode.jsonc` | provider, agents, MCP servers, permissions, runtime |
 | `config/omo.jsonc` | `$HOME/.omo/omo.jsonc` | OMO agent and category routing |
 | `config/tui.json` | `$HOME/.config/opencode/tui.json` | theme and TUI settings |
+| `config/magic-context.jsonc` | `$HOME/.config/cortexkit/magic-context.jsonc` | Magic Context historian model |
 
 ## config/opencode.jsonc
 
@@ -35,7 +36,7 @@ This is the main file. It is JSONC, so comments are allowed.
 ```jsonc
 "plugin": [
   "oh-my-openagent@5.0.0-beta.62",
-  "@cortexkit/opencode-magic-context@0.42.2"
+  "@cortexkit/opencode-magic-context@0.43.1"
 ]
 ```
 
@@ -46,7 +47,8 @@ two systems compacting at once.
 ### Permissions
 
 Hoplon runs YOLO by default, with guards on destructive commands. The matcher
-takes the last matching rule, so specific rules sit after the `*` catch-all.
+is a text denylist, not a containment boundary: it takes the last matching rule,
+so specific rules sit after the `*` catch-all, and wrappers can bypass it.
 
 | Tool | Setting |
 | --- | --- |
@@ -68,9 +70,10 @@ Bash guards:
 | `*:(){*` (fork bomb) | ask |
 | `git push*--force*`, `git push*-f*` | ask |
 
-These guards are broad but not exhaustive. Wrappers and unusual flag orders can
-slip through. Treat YOLO mode as host-level authority. See
-[Security](security.md).
+These guards are broad but not exhaustive. `bash -c 'rm -rf /'` and other
+wrappers bypass the match, and unusual flag orders slip through. Treat YOLO mode
+as host-level authority; the sandbox (`HOPLON_SANDBOX=1`) or a guest tier is the
+real boundary. See [Security](security.md) and [Sandbox](sandbox.md).
 
 ### Provider
 
@@ -149,8 +152,8 @@ This loads the operator persona and rules of engagement.
 | `logLevel` | `INFO` |
 | `tool_output.max_lines` | `800` |
 | `tool_output.max_bytes` | `512000` |
-| `compaction.auto` | `true` |
-| `compaction.prune` | `true` |
+| `compaction.auto` | `false` |
+| `compaction.prune` | `false` |
 | `experimental.batch_tool` | `true` |
 | `experimental.openTelemetry` | `false` |
 | `experimental.continue_loop_on_deny` | `true` |
@@ -163,14 +166,17 @@ This loads the operator persona and rules of engagement.
 | `server.hostname` | `127.0.0.1` |
 | `server.mdns` | `false` |
 
+Native compaction stays off (`auto` and `prune` false) because Magic Context
+owns the context window. See [Magic Context](magic-context.md).
+
 ## config/omo.jsonc
 
 This file configures the Oh My OpenAgent layer. OMO reads a user layer at
 `$HOME/.omo/omo.jsonc` plus a project `.omo/omo.jsonc` walked upward. The
 launcher copies this file to the user layer in the isolated home.
 
-It has two top-level sections: `[opencode].agents` and `[opencode].categories`,
-plus `background_task`, `disabled_hooks`, and `team_mode`.
+The `[opencode]` section holds `agents`, `categories`, `background_task`,
+`disabled_hooks`, and `team_mode`; `telemetry` sits at the top level.
 
 ### Disabled hooks
 
@@ -207,7 +213,10 @@ Anonymous telemetry is off for a portable, opsec-conscious distribution.
 ```jsonc
 {
   "theme": "hoplon",
-  "plugin": [["./plugins/hoplon-brand.tsx", { "enabled": true }]],
+  "plugin": [
+    ["./plugins/hoplon-brand.tsx", { "enabled": true }],
+    "@cortexkit/opencode-magic-context@0.43.1"
+  ],
   "scroll_speed": 3,
   "scroll_acceleration": { "enabled": true },
   "diff_style": "auto",
@@ -217,6 +226,13 @@ Anonymous telemetry is off for a portable, opsec-conscious distribution.
 ```
 
 Switch to the transparent variant by setting `"theme": "hoplon-ghost"`.
+
+## config/magic-context.jsonc
+
+The Magic Context engine config. The launcher seeds it to
+`$HOME/.config/cortexkit/magic-context.jsonc` in the isolated home. It sets the
+historian model to `venice/olafangensan-glm-4.7-flash-heretic`, because the
+historian only summarizes older history. See [Magic Context](magic-context.md).
 
 ## Editing safely
 

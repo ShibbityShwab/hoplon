@@ -50,7 +50,7 @@ if command -v readlink > /dev/null 2>&1 &&
 else
   while [ -h "$_hoplon_self" ]; do
     _hoplon_dir="$(cd -P "$(dirname "$_hoplon_self")" > /dev/null 2>&1 && pwd)"
-    _hoplon_link="$(readlink -- "$_hoplon_self")"
+    _hoplon_link="$(readlink "$_hoplon_self")"
     case "$_hoplon_link" in
       /*) _hoplon_self="$_hoplon_link" ;;
       *) _hoplon_self="$_hoplon_dir/$_hoplon_link" ;;
@@ -67,13 +67,33 @@ export HOPLON_HOST_HOME
 
 # ---------------------------------------------------------------------------
 # Local environment: VENICE_API_KEY, MCP keys, passthrough flags.
+#
+# Read .env as data, never as code. Defense in depth: the sandbox now mounts
+# this repo read-only, but any process that can write the checkout (an agent
+# run unsandboxed, or a misconfigured bind) could otherwise append a command
+# substitution and get host code execution on the next launch. Only NAME=value
+# lines at column 0 are honored; surrounding single or double quotes are
+# stripped; the value is exported verbatim. Command substitution, backticks,
+# and arithmetic never run.
 # ---------------------------------------------------------------------------
-if [ -f "$HOPLON_HOME/.env" ]; then
+_hoplon_load_env() {
+  [ -f "$1" ] && [ -r "$1" ] || return 0
   set -a
-  # shellcheck disable=SC1091
-  . "$HOPLON_HOME/.env"
+  while IFS= read -r _hl_line || [ -n "$_hl_line" ]; do
+    _hl_line="${_hl_line%$'\r'}"
+    [[ "$_hl_line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || continue
+    _hl_name="${_hl_line%%=*}"
+    _hl_value="${_hl_line#*=}"
+    case "$_hl_value" in
+      \'*\') _hl_value="${_hl_value#\'}" && _hl_value="${_hl_value%\'}" ;;
+      \"*\") _hl_value="${_hl_value#\"}" && _hl_value="${_hl_value%\"}" ;;
+    esac
+    export "$_hl_name=$_hl_value"
+  done < "$1"
   set +a
-fi
+  unset _hl_line _hl_name _hl_value 2> /dev/null || true
+}
+_hoplon_load_env "$HOPLON_HOME/.env"
 
 # ---------------------------------------------------------------------------
 # `hoplon update`: hand off to the updater with the host environment intact.
@@ -102,6 +122,31 @@ export XDG_STATE_HOME="$HOME/.local/state"
 unset OPENCODE_CONFIG OPENCODE_CONFIG_DIR OPENCODE_CONFIG_CONTENT \
   OPENCODE_TUI_CONFIG OPENCODE_PERMISSION OPENCODE_DB \
   OPENCODE_MODELS_PATH OPENCODE_MODELS_URL 2> /dev/null || true
+
+# ---------------------------------------------------------------------------
+# Drop host credential, agent, and container-runtime selectors. The isolated
+# HOME hides credential files, but an inherited env var would still carry the
+# same access into the child: an SSH/GPG agent socket, cloud API keys, or a
+# docker endpoint that bypasses the sandbox. XDG_RUNTIME_DIR and TMPDIR are
+# reset into the isolated home so nothing points back at host state.
+# ---------------------------------------------------------------------------
+unset SSH_AUTH_SOCK SSH_AGENT_PID SSH_ASKPASS GIT_ASKPASS GPG_AGENT_INFO \
+  KRB5CCNAME KRB5_CONFIG GITHUB_TOKEN GH_TOKEN \
+  AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN \
+  DOCKER_HOST DOCKER_TLS_VERIFY DOCKER_CERT_PATH DOCKER_CONTEXT \
+  XDG_RUNTIME_DIR TMPDIR 2> /dev/null || true
+
+# Azure and Google/GCP credentials use dynamic names, so sweep the exported set.
+while IFS= read -r _hoplon_var; do
+  case "$_hoplon_var" in
+    AZURE_* | GOOGLE_* | GCP_*) unset "$_hoplon_var" ;;
+  esac
+done < <(compgen -e)
+unset _hoplon_var 2> /dev/null || true
+
+export XDG_RUNTIME_DIR="$HOME/.run"
+export TMPDIR="$HOME/tmp"
+mkdir -p "$XDG_RUNTIME_DIR" "$TMPDIR"
 
 # Frozen distribution: no self-update, no OMO telemetry.
 export OPENCODE_DISABLE_AUTOUPDATE=1
@@ -306,11 +351,12 @@ HOPLON_OMO_MODE=""
 _hoplon_marker="HOPLON - Oh My OpenAgent"
 
 # Original file mode lookup. GNU coreutils uses `stat -c %a`; BSD/macOS uses
-# `stat -f %Lp`.
+# `stat -f %Lp`. `-L` dereferences a symlink so the mode captured is the target
+# file's, not the link's own 0777.
 _hoplon_file_mode() {
   case "$(uname -s)" in
-    Darwin | *BSD*) stat -f '%Lp' "$1" 2> /dev/null || true ;;
-    *) stat -c '%a' "$1" 2> /dev/null || true ;;
+    Darwin | *BSD*) stat -L -f '%Lp' "$1" 2> /dev/null || true ;;
+    *) stat -L -c '%a' "$1" 2> /dev/null || true ;;
   esac
 }
 
@@ -351,28 +397,36 @@ if [ "$HOPLON_ENABLE_OMO" != "0" ] && [ "${HOPLON_OMO_TAKEOVER:-1}" != "0" ]; th
   done
 
   if [ -n "$_conflict" ]; then
-    _bak="${_conflict}.hoplon-hostbak"
-    # Self-heal: if a previous run died before restoring, put the host file back.
-    if [ -f "$_bak" ] && grep -q "$_hoplon_marker" "$_conflict" 2> /dev/null; then
-      cp -f "$_bak" "$_conflict" 2> /dev/null || true
-    fi
-    HOPLON_OMO_MODE="$(_hoplon_file_mode "$_conflict")"
-    # A real host file (no Hoplon marker) is authoritative. Always refresh the
-    # backup from its current content so host edits made since an earlier run
-    # survive the restore. If the conflict still holds Hoplon's marker, the
-    # self-heal above could not restore it, so leave the existing backup alone.
-    if ! grep -q "$_hoplon_marker" "$_conflict" 2> /dev/null; then
-      cp -f "$_conflict" "$_bak" 2> /dev/null || true
-      chmod 600 "$_bak" 2> /dev/null || true
-    fi
-    # Write atomically so a killed run never leaves a half-written config.
-    if cp -f "$HOPLON_HOME/config/omo.jsonc" "$_conflict.hoplon-new.$$" 2> /dev/null &&
-      mv -f "$_conflict.hoplon-new.$$" "$_conflict" 2> /dev/null; then
-      HOPLON_OMO_RESTORE="$_conflict"
-      HOPLON_OMO_BAK="$_bak"
-      printf 'hoplon: host OMO config at %s would override Venice routing; taking it over for this session (restored on exit).\n' "$_conflict" >&2
+    if [ -L "$_conflict" ]; then
+      # Never rewrite a symlink. The temp-file plus rename below would replace
+      # the link inode, severing the relationship to the real host config, and
+      # a mode lookup without -L would read the link's synthetic mode. Leaving
+      # it alone keeps the host file exactly as the operator set it up.
+      printf 'hoplon: notice: host OMO config at %s is a symlink; skipping the takeover so the link is not clobbered.\n' "$_conflict" >&2
     else
-      printf 'hoplon: warning: a host OMO config at %s may override Hoplon routing (could not take it over).\n' "$_conflict" >&2
+      _bak="${_conflict}.hoplon-hostbak"
+      # Self-heal: if a previous run died before restoring, put the host file back.
+      if [ -f "$_bak" ] && grep -q "$_hoplon_marker" "$_conflict" 2> /dev/null; then
+        cp -f "$_bak" "$_conflict" 2> /dev/null || true
+      fi
+      HOPLON_OMO_MODE="$(_hoplon_file_mode "$_conflict")"
+      # A real host file (no Hoplon marker) is authoritative. Always refresh the
+      # backup from its current content so host edits made since an earlier run
+      # survive the restore. If the conflict still holds Hoplon's marker, the
+      # self-heal above could not restore it, so leave the existing backup alone.
+      if ! grep -q "$_hoplon_marker" "$_conflict" 2> /dev/null; then
+        cp -f "$_conflict" "$_bak" 2> /dev/null || true
+        chmod 600 "$_bak" 2> /dev/null || true
+      fi
+      # Write atomically so a killed run never leaves a half-written config.
+      if cp -f "$HOPLON_HOME/config/omo.jsonc" "$_conflict.hoplon-new.$$" 2> /dev/null &&
+        mv -f "$_conflict.hoplon-new.$$" "$_conflict" 2> /dev/null; then
+        HOPLON_OMO_RESTORE="$_conflict"
+        HOPLON_OMO_BAK="$_bak"
+        printf 'hoplon: host OMO config at %s would override Venice routing; taking it over for this session (restored on exit).\n' "$_conflict" >&2
+      else
+        printf 'hoplon: warning: a host OMO config at %s may override Hoplon routing (could not take it over).\n' "$_conflict" >&2
+      fi
     fi
   fi
 fi
@@ -382,20 +436,61 @@ fi
 # restored when opencode exits.
 #
 # Optional bubblewrap sandbox (HOPLON_SANDBOX=1). The host filesystem is hidden
-# except the repo and the target directory, while the network stays up for the
-# Venice API. Raw-socket tooling (nmap -sS, ARP, packet capture) needs
-# CAP_NET_RAW and will not work inside; run those unsandboxed.
+# except the repo (read-only), the isolated state home (read-write), and the
+# target directory, while the network stays up for the Venice API. Raw-socket
+# tooling (nmap -sS, ARP, packet capture) needs CAP_NET_RAW and will not work
+# inside; run those unsandboxed.
 # ---------------------------------------------------------------------------
 if [ "${HOPLON_SANDBOX:-0}" != "0" ]; then
   if command -v bwrap > /dev/null 2>&1; then
+    # /run is emptied because a host /run exposes /run/docker.sock (plus the
+    # containerd, podman, and dbus sockets and /run/user keyrings): a container
+    # escape straight to host root. Re-expose only the resolver runtime dirs
+    # that /etc/resolv.conf may symlink into.
     _hoplon_sb=(bwrap --die-with-parent
       --unshare-user --unshare-pid --unshare-ipc --unshare-uts
       --ro-bind /usr /usr --ro-bind-try /bin /bin --ro-bind-try /lib /lib
       --ro-bind-try /lib64 /lib64 --ro-bind-try /sbin /sbin
-      --ro-bind /etc /etc --ro-bind-try /opt /opt --ro-bind-try /run /run
-      --proc /proc --dev /dev --tmpfs /tmp
-      --bind "$HOPLON_HOME" "$HOPLON_HOME")
-    case "$PWD" in "$HOPLON_HOME" | "$HOPLON_HOME"/*) : ;; *) _hoplon_sb+=(--bind "$PWD" "$PWD") ;; esac
+      --ro-bind /etc /etc --ro-bind-try /opt /opt
+      --proc /proc --dev /dev --tmpfs /run --tmpfs /tmp
+      --ro-bind-try /run/systemd/resolve /run/systemd/resolve)
+    if [ -d /run/NetworkManager ]; then
+      _hoplon_sb+=(--ro-bind /run/NetworkManager /run/NetworkManager)
+    fi
+    # The repo is the source of truth, so mount it read-only and reopen only
+    # the state home read-write. A writable repo would let a sandboxed agent
+    # poison .env, config, or bin/opencode for the next unsandboxed launch.
+    _hoplon_sb+=(--ro-bind "$HOPLON_HOME" "$HOPLON_HOME"
+      --bind "$HOPLON_HOME/home" "$HOPLON_HOME/home")
+    # Refuse to expose the whole host: launching from /, the host home, or an
+    # ancestor of it would hand the agent every file under that root.
+    _hoplon_pwd="$(pwd -P 2> /dev/null || printf '%s' "$PWD")"
+    _hoplon_broad=""
+    case "$_hoplon_pwd" in /) _hoplon_broad="/" ;; esac
+    if [ -n "${HOPLON_HOST_HOME:-}" ]; then
+      if [ "$_hoplon_pwd" = "$HOPLON_HOST_HOME" ]; then
+        _hoplon_broad="the host home ($HOPLON_HOST_HOME)"
+      elif [ -z "$_hoplon_broad" ]; then
+        case "$HOPLON_HOST_HOME" in
+          "$_hoplon_pwd"/*) _hoplon_broad="an ancestor of the host home ($HOPLON_HOST_HOME)" ;;
+        esac
+      fi
+    fi
+    case "$PWD" in
+      "$HOPLON_HOME" | "$HOPLON_HOME"/*) : ;;
+      *)
+        if [ -n "$_hoplon_broad" ]; then
+          if [ "${HOPLON_SANDBOX_ALLOW_BROAD:-0}" = "1" ]; then
+            printf 'hoplon: WARNING: sandbox target %s is %s; exposing the whole tree read-write because HOPLON_SANDBOX_ALLOW_BROAD=1.\n' "$_hoplon_pwd" "$_hoplon_broad" >&2
+          else
+            printf 'hoplon: refusing to sandbox %s: it is %s. Launch from a project directory, or set HOPLON_SANDBOX_ALLOW_BROAD=1 to override.\n' "$_hoplon_pwd" "$_hoplon_broad" >&2
+            exit 1
+          fi
+        fi
+        _hoplon_sb+=(--bind "$PWD" "$PWD")
+        ;;
+    esac
+    unset _hoplon_pwd _hoplon_broad 2> /dev/null || true
     # The host home is hidden, so tools installed per-user (pipx, cargo, go,
     # bun) would be missing. HOPLON_SANDBOX_BINS=1 exposes those bin dirs
     # read-only. Everything in /usr is already available without this.
@@ -405,7 +500,7 @@ if [ "${HOPLON_SANDBOX:-0}" != "0" ]; then
       done
     fi
     _hoplon_sb+=(--chdir "$PWD" "$HOPLON_HOME/bin/opencode")
-    printf 'hoplon: sandbox on (bwrap); host FS hidden except %s and %s\n' "$HOPLON_HOME" "$PWD" >&2
+    printf 'hoplon: sandbox on (bwrap); host FS hidden except repo %s (read-only) and %s\n' "$HOPLON_HOME" "$PWD" >&2
     "${_hoplon_sb[@]}" "$@"
   else
     printf 'hoplon: HOPLON_SANDBOX=1 but bwrap is missing; running unsandboxed\n' >&2

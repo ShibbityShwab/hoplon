@@ -19,6 +19,8 @@ Optional, for the MCP servers that need them:
 - `uvx` for the `cve` server
 - `docker` for the `nuclei`, `sqlmap`, `ffuf`, and `ghidra` servers
 - `bwrap` for the sandbox (`HOPLON_SANDBOX=1`)
+- `qemu-system-x86_64`, `qemu-img`, and `xorriso` for the `vm` tier
+- `nix` with flakes and `/dev/kvm` for the `nix` tier
 
 ## Clone and install
 
@@ -30,14 +32,17 @@ scripts/install.sh
 
 `scripts/install.sh` does the following:
 
-1. Reads `.env` if present, so a pinned `HOPLON_OPENCODE_SHA256` takes effect.
+1. Reads `.env` as data, never as shell, so a pinned `HOPLON_OPENCODE_SHA256`
+   takes effect without executing the file.
 2. Resolves the platform asset: `opencode-linux-<arch>.tar.gz` or
    `opencode-darwin-<arch>.zip`.
 3. Downloads it from
    `https://github.com/<repo>/releases/download/v<version>/<asset>`.
-4. Verifies the archive with `sha256sum` when `HOPLON_OPENCODE_SHA256` is set,
-   falling back to `shasum -a 256` on macOS where `sha256sum` is absent, and
-   fails closed on a mismatch.
+4. Verifies the archive digest. The pinned 1.18.25 linux-x64 archive has a
+   built-in SHA-256 and is verified by default with `sha256sum`, falling back to
+   `shasum -a 256` on macOS where `sha256sum` is absent; a mismatch fails closed.
+   Any other version or platform needs `HOPLON_OPENCODE_SHA256` set explicitly,
+   and the installer warns when it is missing.
 5. Extracts the archive and installs the `opencode` binary into `bin/` by
    rename, so an interrupted download never leaves a truncated binary.
 6. Prints the installed version.
@@ -54,10 +59,10 @@ rather than committed.
 | --- | --- | --- |
 | `HOPLON_OPENCODE_VERSION` | `1.18.25` | opencode release to fetch |
 | `HOPLON_OPENCODE_REPO` | `anomalyco/opencode` | GitHub repo to fetch from |
-| `HOPLON_OPENCODE_SHA256` | unset | archive digest; verified and fails closed |
+| `HOPLON_OPENCODE_SHA256` | built-in for 1.18.25 linux-x64 | archive digest; verified and fails closed. Any other version or platform must set it or the installer warns |
 
-Set them in the environment or in `.env`. The installer sources `.env`, so a
-pinned digest there works.
+Set them in the environment or in `.env`. The installer reads `.env` as data, so
+a pinned digest there works.
 
 ## Configure the API key
 
@@ -71,7 +76,8 @@ Edit `.env` and set:
 VENICE_API_KEY=your-key-here
 ```
 
-Get a key at <https://venice.ai>. The launcher sources `.env` on every run.
+Get a key at <https://venice.ai>. The launcher reads `.env` as data on every
+run, so values are never executed as shell.
 
 Optional keys, only needed when you enable the matching MCP server:
 
@@ -104,6 +110,21 @@ This reports the opencode version, whether `VENICE_API_KEY` is set, whether
 `bwrap` is available, which MCP runtimes exist, which weapon binaries are
 installed, and whether Venice is reachable. It does not seed or launch.
 
+## Isolation tiers
+
+`HOPLON_ISOLATION` chooses where the stack runs. `host` is the default and
+everything above. `vm` and `nix` hand the whole distribution to a guest with
+its own kernel, filesystem, and user:
+
+| Value | What it runs | Requirements | Page |
+| --- | --- | --- | --- |
+| `host` (default) | isolated HOME on this machine, optional bubblewrap sandbox | `bwrap` for the sandbox | [Sandbox](sandbox.md) |
+| `vm` | Debian QEMU/KVM guest provisioned by cloud-init | QEMU, KVM, `xorriso` | [QEMU guest](vm.md) |
+| `nix` | declarative NixOS guest built from pinned Nix inputs | Nix with flakes, KVM | [NixOS guest](nixos-vm.md) |
+
+The `vm` and `nix` tiers install their own toolchain in the guest; the host
+needs only the tools above to build and boot it.
+
 ## Updating
 
 Hoplon is frozen by design: the launcher sets `OPENCODE_DISABLE_AUTOUPDATE=1`.
@@ -112,7 +133,13 @@ To update, re-run `scripts/install.sh` with a new `HOPLON_OPENCODE_VERSION`, or
 
 ## Uninstalling
 
-Delete the directory. Hoplon writes only inside its own tree (`./home` and
-`./bin`), so there is nothing to clean up elsewhere. The one exception is the
-OMO takeover, which temporarily swaps a host `~/.omo/omo.jsonc` and restores it
-on exit; see [Isolation](isolation.md).
+Delete the directory. Runtime state lives in `./home`, VM state in `./vm`, and
+the opencode binary in `./bin`, all inside the tree. Three things live outside
+it:
+
+- The `hoplon` symlink the installer created in `HOPLON_BIN_DIR` (default
+  `$HOME/.local/bin`). Delete it.
+- A host `~/.omo/omo.jsonc` that the launcher temporarily swaps and restores on
+  exit; see [Isolation](isolation.md).
+- The Nix package wrapper keeps a writable home at `~/.local/share/hoplon`.
+  Delete it if you installed through the flake.

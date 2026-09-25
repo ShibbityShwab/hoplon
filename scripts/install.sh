@@ -9,7 +9,9 @@
 #   HOPLON_OPENCODE_VERSION   default 1.18.25 (the version this repo is tested
 #                             on); "latest" tracks the newest release
 #   HOPLON_OPENCODE_REPO      default anomalyco/opencode
-#   HOPLON_OPENCODE_SHA256    optional archive digest; verified with sha256sum
+#   HOPLON_OPENCODE_SHA256    archive digest; the pinned 1.18.25 linux-x64
+#                             digest is built in, so verification is on by
+#                             default. Set it for any other version/platform.
 #   HOPLON_BIN_DIR            where the `hoplon` command is linked
 #                             (default $HOME/.local/bin)
 # =============================================================================
@@ -18,12 +20,27 @@ set -euo pipefail
 HOPLON_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." > /dev/null 2>&1 && pwd -P)"
 
 # Pull optional settings (version, digest) from .env when present, so a pinned
-# HOPLON_OPENCODE_SHA256 in .env actually takes effect.
-if [ -f "$HOPLON_HOME/.env" ]; then
+# HOPLON_OPENCODE_SHA256 in .env actually takes effect. Read .env as data, never
+# as code: only NAME=value lines at column 0 are honored, with optional
+# surrounding quotes stripped. Sourcing it would let a value execute as shell.
+_hoplon_load_env() {
+  [ -f "$1" ] && [ -r "$1" ] || return 0
   set -a
-  . "$HOPLON_HOME/.env"
+  while IFS= read -r _hl_line || [ -n "$_hl_line" ]; do
+    _hl_line="${_hl_line%$'\r'}"
+    [[ "$_hl_line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || continue
+    _hl_name="${_hl_line%%=*}"
+    _hl_value="${_hl_line#*=}"
+    case "$_hl_value" in
+      \'*\') _hl_value="${_hl_value#\'}" && _hl_value="${_hl_value%\'}" ;;
+      \"*\") _hl_value="${_hl_value#\"}" && _hl_value="${_hl_value%\"}" ;;
+    esac
+    export "$_hl_name=$_hl_value"
+  done < "$1"
   set +a
-fi
+  unset _hl_line _hl_name _hl_value 2> /dev/null || true
+}
+_hoplon_load_env "$HOPLON_HOME/.env"
 
 VERSION="${HOPLON_OPENCODE_VERSION:-1.18.25}"
 REPO="${HOPLON_OPENCODE_REPO:-anomalyco/opencode}"
@@ -53,6 +70,16 @@ else
   url="https://github.com/${REPO}/releases/download/v${VERSION}/${asset}"
 fi
 
+# Integrity checking is on by default for the pinned release: the digest of the
+# 1.18.25 linux-x64 archive is built in. Any other version or platform must set
+# HOPLON_OPENCODE_SHA256 explicitly; otherwise the download is fetched but not
+# verified, and a warning is printed below.
+_default_sha256="58a3729a6f3432dd6d2917fcc4a949788891a035818646ad480e12c947f56e78"
+if [ -z "${HOPLON_OPENCODE_SHA256:-}" ] &&
+  [ "$VERSION" = "1.18.25" ] && [ "$os" = "linux" ] && [ "$arch" = "x64" ]; then
+  HOPLON_OPENCODE_SHA256="$_default_sha256"
+fi
+
 mkdir -p "$HOPLON_HOME/bin" "$HOPLON_HOME/home"
 
 tmp="$(mktemp -d)"
@@ -64,8 +91,9 @@ if ! curl -fsSL "$url" -o "$tmp/$asset"; then
   exit 1
 fi
 
-# Optional integrity check. Pin the digest in .env or the environment to make
-# a tampered or partial download fail closed.
+# Integrity check. The pinned release carries a built-in digest, so this runs by
+# default; set HOPLON_OPENCODE_SHA256 for any other version or platform. A
+# mismatch fails closed.
 if [ -n "${HOPLON_OPENCODE_SHA256:-}" ]; then
   if command -v sha256sum > /dev/null 2>&1; then
     _sha=(sha256sum -c -)
@@ -80,6 +108,8 @@ if [ -n "${HOPLON_OPENCODE_SHA256:-}" ]; then
     exit 1
   }
   printf 'hoplon: checksum verified\n'
+else
+  printf 'hoplon: warning: no HOPLON_OPENCODE_SHA256 set; %s was not integrity-verified\n' "$asset" >&2
 fi
 
 case "$asset" in

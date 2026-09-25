@@ -19,9 +19,9 @@ Hoplon is an OpenCode distribution for authorized offensive security work. It ru
 | | |
 | --- | --- |
 | **Venice only, uncensored** | `provider.venice.whitelist` allows exactly seven uncensored models. The allowlist is enforced, not a suggestion. |
-| **Portable and isolated** | Its own `HOME` and all four XDG dirs live under `./home`. No host OpenCode or OMO state is read or written. |
-| **Sandbox mode** | `HOPLON_SANDBOX=1` wraps the runtime in bubblewrap, hiding the host filesystem while keeping the network for the API. |
-| **Own VM or OS** | `HOPLON_ISOLATION=vm` boots a Debian QEMU/KVM guest; `nix` builds a declarative NixOS guest. Each has its own kernel, so nothing reaches the host OS. |
+| **Portable and isolated** | Its own `HOME` and all four XDG dirs live under `./home`. No host OpenCode or OMO state is read or written, except a host OMO config that would override the routing, which is taken over for the session and restored on exit. |
+| **Sandbox mode** | `HOPLON_SANDBOX=1` wraps the runtime in bubblewrap: the repo is read-only, host credentials and container sockets are hidden, and the network stays up for the API. |
+| **Isolation tiers** | `HOPLON_ISOLATION=host` (default) isolates state on this machine; `vm` boots a Debian QEMU/KVM guest; `nix` boots a declarative NixOS guest. Each guest has its own kernel, so nothing reaches the host OS. |
 | **ROE-gated specialists** | Six red-team subagents and five offense skills, gated by a mandatory `redteam-roe` skill. |
 | **Pinned MCP tooling** | Venice's official MCP server is enabled by default; every `npx` and `uvx` server is version-pinned. |
 | **Reproducible** | A shell test suite and CI cover the config, the launcher, and the no-dash rule. |
@@ -38,7 +38,8 @@ cp .env.example .env    # then set VENICE_API_KEY
 hoplon
 ```
 
-`scripts/install.sh` fetches the pinned opencode binary into `bin/`, then links
+`scripts/install.sh` fetches the pinned opencode binary into `bin/` (the
+1.18.25 linux-x64 archive is verified against a built-in SHA-256), then links
 the `hoplon` launcher onto your `PATH` at `$HOME/.local/bin/hoplon`. Override the
 link location with `HOPLON_BIN_DIR`. If that directory is not on your `PATH`, the
 installer prints the exact `export PATH=...` line to add to your shell rc.
@@ -61,12 +62,16 @@ do.
 
 ### Toggles
 
-Set these in `.env` (the launcher sources it) or in the environment:
+Set these in `.env` (the launcher reads it as data, never as shell) or in the
+environment:
 
 | Variable | Effect |
 | --- | --- |
+| `HOPLON_ISOLATION=host\|vm\|nix` | where the stack runs: this machine, a Debian QEMU/KVM guest, or a declarative NixOS guest |
 | `HOPLON_ENABLE_OMO=0` | run plain OpenCode; drops the OMO plugin and its takeover |
-| `HOPLON_SANDBOX=1` | wrap the runtime in bubblewrap, hiding the host filesystem while keeping the network |
+| `HOPLON_SANDBOX=1` | wrap the runtime in bubblewrap with a read-only repo and no host credentials or container sockets |
+| `HOPLON_SANDBOX_ALLOW_BROAD=1` | allow a sandbox target of `/`, the host home, or an ancestor of it, bound read-write |
+| `HOPLON_OMO_TAKEOVER=0` | leave a conflicting host `~/.omo/omo.jsonc` alone and let it win |
 | `HOPLON_BIN_DIR` | where `scripts/install.sh` links the `hoplon` command |
 | `HOPLON_OPENCODE_VERSION` | opencode release to fetch; `latest` tracks the newest |
 
@@ -86,10 +91,11 @@ Set these in `.env` (the launcher sources it) or in the environment:
 
 | Component | What it is |
 | --- | --- |
-| **Launcher** | The `hoplon` command isolates `HOME` and XDG, seeds config, and handles the OMO host-config conflict. |
+| **Launcher** | The `hoplon` command isolates `HOME` and XDG, drops host credential variables, seeds config, and handles the OMO host-config conflict. |
 | **Harness** | Oh My OpenAgent (OMO) supplies agent and category routing, background tasks, and team mode. Optional; see below. |
 | **Models** | Seven allowlisted Venice uncensored models, routed per agent and category. |
-| **Sandbox** | Optional bubblewrap isolation via `HOPLON_SANDBOX=1`. |
+| **Sandbox** | Optional bubblewrap containment via `HOPLON_SANDBOX=1`: read-only repo, no host credentials or container sockets. |
+| **Isolation tiers** | `host` (isolated state), `vm` (Debian QEMU/KVM guest), or `nix` (declarative NixOS guest). The guests have their own kernel. |
 | **Skills** | Five red-team skills plus 20 vendored Venice API skills. |
 | **MCP** | Venice's MCP server on by default; recon and weapon servers present but off until enabled. |
 
@@ -104,6 +110,7 @@ Set these in `.env` (the launcher sources it) or in the environment:
 - [NixOS guest](docs/nixos-vm.md)
 - [Models](docs/models.md)
 - [MCP servers](docs/mcp-servers.md)
+- [Magic Context](docs/magic-context.md)
 - [Rules of engagement](docs/rules-of-engagement.md)
 
 For the full walkthrough, offline and portability notes, and hardening detail, start at the docs site. To verify any claim in this README, see [CONTRIBUTING.md](CONTRIBUTING.md).

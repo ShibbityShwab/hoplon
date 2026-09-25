@@ -34,8 +34,9 @@ the model must be one Venice tags uncensored if you want the no-filter property.
 ## Why is the API key still readable by the agent?
 
 Read prompts for `.env`, but bash is allowed, so the agent can reach the key with
-`cat .env`. Treat the key as exposed to the model. Scope the key and run
-engagements on a disposable box. See [Security](security.md).
+`cat .env`. The sandbox mounts the repo read-only, so the key stays readable but
+cannot be changed there. Treat the key as exposed to the model. Scope the key and
+run engagements on a disposable box. See [Security](security.md).
 
 ## Why are the weapon MCP servers disabled?
 
@@ -57,10 +58,11 @@ of them.
 
 ## Does Hoplon touch my existing OpenCode or OMO install?
 
-No. It isolates `HOME` and all four XDG variables into `./home` and unsets host
-`OPENCODE_*` selectors. The one exception is the OMO takeover: if a host
-`~/.omo/omo.jsonc` sits above the working directory, the launcher swaps it for
-the session and restores it on exit. See [Isolation](isolation.md).
+No. It isolates `HOME` and all four XDG variables into `./home`, unsets host
+`OPENCODE_*` selectors, and drops host credential and agent variables. The one
+exception is the OMO takeover: if a host `~/.omo/omo.jsonc` sits above the
+working directory, the launcher swaps it for the session and restores it on
+exit. See [Isolation](isolation.md).
 
 ## Can I run it without OMO?
 
@@ -69,7 +71,22 @@ mode. See [OMO](omo.md).
 
 ## Is the sandbox on by default?
 
-No. Set `HOPLON_SANDBOX=1`. It requires `bwrap`. See [Sandbox](sandbox.md).
+No. Set `HOPLON_SANDBOX=1`. It requires `bwrap`. The permission rules are a text
+denylist, not a containment boundary, so the sandbox or a guest tier is the real
+boundary. See [Sandbox](sandbox.md).
+
+## Can the agent modify Hoplon or the repo from inside the sandbox?
+
+No. The repo is mounted read-only, so the launcher, `scripts/`, `config/`,
+`bin/`, and `.env` cannot be changed. Only the isolated home and the target
+directory are writable. Unsandboxed, the agent can edit the repo. See
+[Sandbox](sandbox.md).
+
+## Can I run it in a VM?
+
+Yes. `HOPLON_ISOLATION=vm` boots a Debian QEMU/KVM guest, and
+`HOPLON_ISOLATION=nix` boots a declarative NixOS guest. Both have their own
+kernel, filesystem, and user. See [Isolation](isolation.md).
 
 ## Why does `nmap -sS` fail in the sandbox?
 
@@ -83,8 +100,10 @@ and re-run the installer. Autoupdate is disabled by design.
 
 ## How do I verify the claims in the README?
 
-Every claim is checkable from the repo. See the "How to verify" section in the
-[README](https://github.com/ShibbityShwab/hoplon/blob/main/README.md) and the shell tests in `tests/`.
+Every claim is checkable from the repo. The lint and validation commands are in
+[CONTRIBUTING.md](https://github.com/ShibbityShwab/hoplon/blob/main/CONTRIBUTING.md),
+and the shell tests in `tests/` cover config parsing, the whitelist count,
+launcher behavior, and the no-dash rule.
 
 ## Where do I report a security issue?
 

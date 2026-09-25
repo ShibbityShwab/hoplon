@@ -35,7 +35,7 @@ skills.
 ```jsonc
 "plugin": [
   "oh-my-openagent@5.0.0-beta.62",
-  "@cortexkit/opencode-magic-context@0.42.2"
+  "@cortexkit/opencode-magic-context@0.43.1"
 ]
 ```
 

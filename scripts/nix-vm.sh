@@ -89,13 +89,23 @@ resolve_flake() {
   die "no flake.nix found in $HOPLON_HOME or $PWD (set HOPLON_NIX_FLAKE)"
 }
 
-# Turn a local directory into a `path:` ref so untracked files are visible (a
-# bare path inside a git repo only sees tracked files). Remote refs pass through.
+# Turn a local directory into a flake ref. Inside a git work tree, emit
+# git+file:// so the fetcher copies only tracked files into the store; a bare
+# path: ref would copy everything, including gitignored secrets (.env) and large
+# state directories such as home/ and vm/. New files must be marked with
+# `git add -N <path>` to be visible to the fetcher. Non-git directories keep
+# path:, since there is no tracked set to narrow the copy to.
 flake_target() {
   local ref="${1:?flake_target needs a ref}"
   local attr="${2:?flake_target needs an attribute}"
   if [ -d "$ref" ]; then
-    printf 'path:%s#%s' "$ref" "$attr"
+    ref="$(cd "$ref" > /dev/null 2>&1 && pwd -P)"
+    local top
+    if top="$(git -C "$ref" rev-parse --show-toplevel 2> /dev/null)" && [ "$top" = "$ref" ]; then
+      printf 'git+file://%s#%s' "$ref" "$attr"
+    else
+      printf 'path:%s#%s' "$ref" "$attr"
+    fi
   else
     printf '%s#%s' "$ref" "$attr"
   fi
@@ -140,6 +150,11 @@ does for HOPLON_ISOLATION=nix.
 
 Requirements: nix with flakes enabled, and /dev/kvm for acceleration (QEMU
 falls back to emulation without it, which is very slow).
+
+A local git checkout is built through git+file://, so only tracked files enter
+the Nix store and gitignored secrets (.env) and state (home/, vm/) stay out. Mark
+new files with `git add -N <path>` before building, or the fetcher will not see
+them.
 
 See docs/nixos-vm.md for login details, the shipped toolchain, and tradeoffs
 against the Debian QEMU guest.

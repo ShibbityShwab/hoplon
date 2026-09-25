@@ -24,6 +24,7 @@ mkdir -p "$data/bin" "$data/home"
 ln -sfn "$store/bin/opencode" "$data/bin/opencode"
 
 for entry in scripts config themes agents skills tui; do
+  rm -rf -- "${data:?}/$entry"
   ln -sfn "$store/$entry" "$data/$entry"
 done
 
@@ -31,8 +32,9 @@ ln -sfn "$store/AGENTS.md" "$data/AGENTS.md"
 ln -sfn "$store/VERSION" "$data/VERSION"
 
 # The launcher must be a real file: if it were a symlink, readlink -f would
-# resolve it back into the store and HOPLON_HOME would be read-only.
-cp -f "$store/hoplon" "$data/hoplon"
-chmod 0755 "$data/hoplon"
+# resolve it back into the store and HOPLON_HOME would be read-only. Remove the
+# destination first so a stale symlink cannot redirect the copy to its target.
+rm -rf -- "$data/hoplon"
+install -m 0755 "$store/hoplon" "$data/hoplon"
 
 exec "$data/hoplon" "$@"

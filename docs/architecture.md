@@ -10,6 +10,8 @@ This page describes how the pieces fit.
 | --- | --- | --- |
 | `hoplon` | launcher: isolation, seed, OMO conflict handling, sandbox | repo root |
 | `scripts/install.sh` | fetch and verify the opencode binary, pre-seed caches | `scripts/` |
+| Isolation backends | Debian QEMU/KVM guest and declarative NixOS guest | `scripts/vm.sh`, `scripts/nix-vm.sh`, `flake.nix` |
+| Toolchain | red-team toolbox for the guests | `scripts/toolchain.sh`, `nix/toolchain.nix` |
 | OpenCode | the agent runtime | `bin/opencode` (fetched) |
 | Oh My OpenAgent | agent and category routing, background tasks, team mode | npm plugin |
 | Magic Context | long-session context management and compaction | npm plugin |
@@ -25,16 +27,18 @@ This page describes how the pieces fit.
   |
   +-- resolve HOPLON_HOME from script location
   +-- capture HOPLON_HOST_HOME
-  +-- source .env
+  +-- read .env as data (never sourced as shell)
   +-- isolate HOME and XDG into ./home
   +-- unset host OPENCODE_* selectors
+  +-- drop host credential and agent variables; reset XDG_RUNTIME_DIR and TMPDIR
   +-- disable autoupdate and OMO telemetry
-  +-- preflight: bin/opencode, config/opencode.jsonc, VENICE_API_KEY
   +-- (doctor? print report and exit)
+  +-- (HOPLON_ISOLATION=vm|nix? exec the guest backend and exit)
+  +-- preflight: bin/opencode, config/opencode.jsonc, VENICE_API_KEY
   +-- seed config, themes, agents, tui into isolated home
   +-- seed git identity and login-shell profile
   +-- OMO conflict handling (takeover + restore trap)
-  +-- (sandbox? wrap in bwrap)
+  +-- (sandbox? guard broad targets, then wrap in bwrap with a read-only repo)
   +-- run bin/opencode as a child process (not exec)
 ```
 
@@ -44,9 +48,13 @@ taken-over host config.
 
 ## Isolation boundary
 
-The launcher is the security boundary. It isolates `HOME` and all four XDG
-variables, drops host `OPENCODE_*` selectors, and seeds config by copy. See
-[Isolation](isolation.md).
+The launcher is the state boundary. It isolates `HOME` and all four XDG
+variables, drops host `OPENCODE_*` selectors and host credential variables, and
+seeds config by copy. The default `host` tier shares the host kernel;
+`HOPLON_SANDBOX=1` adds filesystem containment with a read-only repo.
+`HOPLON_ISOLATION=vm` and `nix` hand the whole stack to a guest with its own
+kernel, so the guest boundary replaces the launcher's. See
+[Isolation](isolation.md) and [Sandbox](sandbox.md).
 
 ## Configuration layers
 
@@ -76,8 +84,8 @@ Weapon tools are globally gated off and re-enabled per agent. See
 ## Context management
 
 Magic Context owns compaction. OMO's `preemptive-compaction` hook is disabled to
-avoid two systems compacting at once. `config/opencode.jsonc` also enables
-`compaction.auto` and `compaction.prune`.
+avoid two systems compacting at once, and `config/opencode.jsonc` keeps native
+compaction off (`compaction.auto` and `compaction.prune` false).
 
 ## Portability
 

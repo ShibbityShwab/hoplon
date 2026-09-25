@@ -22,8 +22,9 @@ scripts/vm.sh destroy    # remove the VM state
 
 cloud-init provisions the guest on first boot: it installs the base packages,
 runs `scripts/toolchain.sh` when `HOPLON_VM_TOOLS` is `core` or `full`, and
-installs Hoplon so the `hoplon` command exists for the `hoplon` user. Set
-`HOPLON_VM_TOOLS=none` for a bare guest.
+installs Hoplon so the `hoplon` command exists for the `hoplon` user. `core` is
+the modest base set; `full` adds the wider red-team toolset. Set
+`HOPLON_VM_TOOLS=none` for a bare guest (no toolchain, no Hoplon install).
 
 ## Knobs
 
@@ -34,6 +35,7 @@ installs Hoplon so the `hoplon` command exists for the `hoplon` user. Set
 | `HOPLON_VM_CPUS` | `4` | guest vCPUs |
 | `HOPLON_VM_DISK` | `20G` | guest disk size |
 | `HOPLON_VM_SSH_KEY` | host `~/.ssh/id_ed25519.pub` | key authorized in the guest |
+| `HOPLON_VM_SSH_PORT` | `2222` | host port forwarded to guest port 22 |
 | `HOPLON_VM_SHARE` | none | directory shared in over virtio-9p |
 | `HOPLON_VM_IMAGE_URL` | Debian bookworm latest | base cloud image to download |
 

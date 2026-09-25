@@ -30,9 +30,17 @@
 #   HOPLON_VM_SSH_TIMEOUT  seconds to wait for sshd (default 300)
 #   HOPLON_VM_SHARE        host dir to expose read-only over virtio-9p
 #   HOPLON_VM_SHARE_TAG    9p mount tag (default engagements)
+#   HOPLON_VM_SHARE_ALLOW  set 1 to share a directory inside HOPLON_HOME; by
+#                          default such a share is refused because it exposes
+#                          .env and the repo's home/ and vm/ state to the guest
 #   HOPLON_VM_IMAGE_URL    base qcow2 URL (default Debian bookworm genericcloud)
 # =============================================================================
 set -euo pipefail
+
+# State written below (disk.qcow2, seed.iso, vm.log, ssh_private_key_path) can
+# include key material and image contents, so create it owner-only. Commands
+# that install files explicitly (install -m ...) still set their own mode.
+umask 077
 
 HOPLON_HOME="${HOPLON_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." > /dev/null 2>&1 && pwd -P)}"
 export HOPLON_HOME
@@ -86,6 +94,90 @@ need_cmd() {
 check_kvm() {
   [ -e /dev/kvm ] || die "/dev/kvm is absent; KVM acceleration is unavailable"
   [ -r /dev/kvm ] && [ -w /dev/kvm ] || die "/dev/kvm is not writable by $(id -un)"
+}
+
+# Reject a value unless it is a non-negative decimal integer.
+require_uint() {
+  local name="$1" value="$2"
+  case "$value" in
+    '' | *[!0-9]*) die "$name must be a decimal integer (got: '$value')" ;;
+  esac
+}
+
+# Validate operator-tunable environment before any value reaches qemu or the
+# cloud-init template. A comma in HOPLON_VM_SSH_PORT would inject extra hostfwd
+# rules into the -nic argument, and a newline in HOPLON_REPO_URL or
+# HOPLON_VM_SHARE_TAG would break out of the user-data YAML and could add a
+# guest-root runcmd. Reject bad values up front with a clear message.
+validate_env() {
+  require_uint HOPLON_VM_RAM "$VM_RAM"
+  [ "$VM_RAM" -gt 0 ] || die "HOPLON_VM_RAM must be greater than 0 (got: '$VM_RAM')"
+
+  require_uint HOPLON_VM_CPUS "$VM_CPUS"
+  [ "$VM_CPUS" -gt 0 ] || die "HOPLON_VM_CPUS must be greater than 0 (got: '$VM_CPUS')"
+
+  require_uint HOPLON_VM_SSH_TIMEOUT "$VM_SSH_TIMEOUT"
+  [ "$VM_SSH_TIMEOUT" -gt 0 ] ||
+    die "HOPLON_VM_SSH_TIMEOUT must be greater than 0 (got: '$VM_SSH_TIMEOUT')"
+
+  require_uint HOPLON_VM_SSH_PORT "$VM_SSH_PORT"
+  [ "$VM_SSH_PORT" -ge 1 ] && [ "$VM_SSH_PORT" -le 65535 ] ||
+    die "HOPLON_VM_SSH_PORT must be an integer between 1 and 65535 (got: '$VM_SSH_PORT')"
+
+  [[ "$VM_DISK" =~ ^[0-9]+[GgMm]$ ]] ||
+    die "HOPLON_VM_DISK must look like 20G or 512M (got: '$VM_DISK')"
+
+  case "$HOPLON_REPO_URL" in
+    *[[:cntrl:]]*) die "HOPLON_REPO_URL must not contain control characters or newlines" ;;
+  esac
+  [[ "$HOPLON_REPO_URL" =~ ^(https|git)://[^[:space:]]+$ ]] ||
+    die "HOPLON_REPO_URL must be an https:// or git:// URL without whitespace (got: '$HOPLON_REPO_URL')"
+
+  case "$VM_SHARE_TAG" in
+    '' | *[!A-Za-z0-9._-]*)
+      die "HOPLON_VM_SHARE_TAG must be non-empty and match [A-Za-z0-9._-]+ (got: '$VM_SHARE_TAG')"
+      ;;
+  esac
+}
+
+# Return success when canonical path $1 is $2 itself or lies beneath it.
+path_within() {
+  local child="$1" parent="${2%/}"
+  [ -n "$parent" ] || return 0
+  [ "$child" = "$parent" ] && return 0
+  case "$child/" in
+    "$parent"/*) return 0 ;;
+  esac
+  return 1
+}
+
+# Refuse to expose HOPLON_HOME (or a directory containing it) to the guest over
+# virtio-9p unless the operator opts in. The repo carries .env with live API
+# keys plus home/ and vm/ state, none of which the guest should read.
+check_share_safety() {
+  [ -n "$VM_SHARE" ] || return 0
+  local share_real home_real leak
+  share_real="$(cd "$VM_SHARE" > /dev/null 2>&1 && pwd -P)" ||
+    die "cannot resolve HOPLON_VM_SHARE: $VM_SHARE"
+  home_real="$(cd "$HOPLON_HOME" > /dev/null 2>&1 && pwd -P)" ||
+    die "cannot resolve HOPLON_HOME: $HOPLON_HOME"
+
+  leak=0
+  path_within "$share_real" "$home_real" && leak=1
+  path_within "$home_real" "$share_real" && leak=1
+  [ "$leak" -eq 1 ] || return 0
+
+  if [ "${HOPLON_VM_SHARE_ALLOW:-0}" = "1" ]; then
+    warn "HOPLON_VM_SHARE_ALLOW=1: exposing $share_real, which overlaps HOPLON_HOME, to the guest"
+    return 0
+  fi
+
+  warn "refusing to share $share_real: it overlaps HOPLON_HOME ($home_real)"
+  warn "the guest would be able to read host material such as:"
+  warn "  $home_real/.env    (live API keys)"
+  warn "  $home_real/home/   (isolated home and caches)"
+  warn "  $home_real/vm/     (VM disk, seed, and SSH key)"
+  die "set HOPLON_VM_SHARE_ALLOW=1 to override, or point HOPLON_VM_SHARE outside HOPLON_HOME"
 }
 
 # Print the recorded PID, or return non-zero when there is none.
@@ -326,6 +418,7 @@ cmd_start() {
   )
   if [ -n "$VM_SHARE" ]; then
     [ -d "$VM_SHARE" ] || die "HOPLON_VM_SHARE is not a directory: $VM_SHARE"
+    check_share_safety
     qemu+=(-virtfs "local,path=$VM_SHARE,mount_tag=$VM_SHARE_TAG,security_model=none,readonly=on")
   fi
 
@@ -498,11 +591,23 @@ main() {
     shift
   fi
   case "$cmd" in
-    create) cmd_create "$@" ;;
-    start) cmd_start "$@" ;;
+    create)
+      validate_env
+      cmd_create "$@"
+      ;;
+    start)
+      validate_env
+      cmd_start "$@"
+      ;;
     stop) cmd_stop "$@" ;;
-    status) cmd_status "$@" ;;
-    ssh) cmd_ssh "$@" ;;
+    status)
+      validate_env
+      cmd_status "$@"
+      ;;
+    ssh)
+      validate_env
+      cmd_ssh "$@"
+      ;;
     destroy) cmd_destroy "$@" ;;
     help | -h | --help) cmd_help ;;
     *)

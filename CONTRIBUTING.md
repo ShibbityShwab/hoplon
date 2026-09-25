@@ -58,9 +58,8 @@ Run the test suite with:
 tests/run.sh
 ```
 
-If the tests directory is not present in your checkout, the suite has not been
-vendored yet; run the manual checks in the lint section below and say so in
-your pull request.
+The suite covers config parsing, the whitelist count, launcher behavior, and the
+no-dash rule.
 
 ## Lint and validation
 
@@ -68,28 +67,29 @@ Run every check that applies to the files you touched. All of them must pass
 before a pull request is ready.
 
 ```bash
-shellcheck hoplon scripts/install.sh
-shfmt -d hoplon scripts/install.sh
+shellcheck hoplon scripts/*.sh
+shfmt -d hoplon scripts/*.sh
 actionlint
-markdownlint '**/*.md'
+npx --yes markdownlint-cli2
 ```
 
 JSONC validation: the config files carry comments, so strip them before
-handing the result to `jq`.
+handing the result to `jq`. The suite's normaliser keeps URLs inside strings
+intact, so run the config test rather than a naive comment strip.
 
 ```bash
-for f in config/opencode.jsonc config/omo.jsonc; do
-  sed 's://.*::' "$f" | jq empty
-done
+bash tests/test_config_jsonc.sh
 jq empty config/tui.json themes/hoplon.json themes/hoplon-ghost.json
 ```
+
+For `config/magic-context.jsonc`, use the `strip_jsonc` helper shown in
+`docs/configuration.md` before piping to `jq`.
 
 Also confirm the tree carries no em dashes or en dashes, since the project
 treats them as a hard style violation:
 
 ```bash
-grep -rnP '[\x{2013}\x{2014}]' \
-  --include='*.md' --include='*.sh' --include='*.jsonc' .
+bash tests/test_no_dashes.sh
 ```
 
 ## Fork, branch, and pull request flow
