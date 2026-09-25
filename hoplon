@@ -18,6 +18,10 @@
 # it on exit. On a clean machine none of this runs and nothing on the host is
 # touched. Set HOPLON_OMO_TAKEOVER=0 to disable the takeover (host config wins).
 #
+# Set HOPLON_ENABLE_OMO=0 to run plain OpenCode: the oh-my-openagent plugin line
+# is stripped from the seeded config, no $HOME/.omo/omo.jsonc is seeded, and the
+# host OMO takeover is skipped. Magic Context is unaffected.
+#
 # Usage:
 #   ./hoplon                 start the TUI in the current directory
 #   ./hoplon run "..."       one-shot prompt
@@ -27,7 +31,7 @@
 set -euo pipefail
 
 # Resolve the repo root regardless of how the script was invoked.
-HOPLON_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P)"
+HOPLON_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" > /dev/null 2>&1 && pwd -P)"
 export HOPLON_HOME
 
 # Capture the real account home before we isolate HOME (for opt-in passthrough).
@@ -59,13 +63,16 @@ export XDG_STATE_HOME="$HOME/.local/state"
 # Drop host selectors that would override or redirect this install.
 # ---------------------------------------------------------------------------
 unset OPENCODE_CONFIG OPENCODE_CONFIG_DIR OPENCODE_CONFIG_CONTENT \
-      OPENCODE_TUI_CONFIG OPENCODE_PERMISSION OPENCODE_DB \
-      OPENCODE_MODELS_PATH OPENCODE_MODELS_URL 2>/dev/null || true
+  OPENCODE_TUI_CONFIG OPENCODE_PERMISSION OPENCODE_DB \
+  OPENCODE_MODELS_PATH OPENCODE_MODELS_URL 2> /dev/null || true
 
 # Frozen distribution: no self-update, no OMO telemetry.
 export OPENCODE_DISABLE_AUTOUPDATE=1
 export OMO_DISABLE_POSTHOG=1
 export OMO_SEND_ANONYMOUS_TELEMETRY=0
+
+# OMO harness toggle. Enabled by default; set to 0 to run pure OpenCode.
+export HOPLON_ENABLE_OMO="${HOPLON_ENABLE_OMO:-1}"
 
 # Bundled binary first on PATH.
 export PATH="$HOPLON_HOME/bin:$PATH"
@@ -101,11 +108,11 @@ fi
 # `hoplon doctor`: report what this environment can actually do, then exit.
 # Does not seed or launch.
 # ---------------------------------------------------------------------------
-_hoplon_have() { command -v "$1" >/dev/null 2>&1 && printf 'yes' || printf 'NO'; }
+_hoplon_have() { command -v "$1" > /dev/null 2>&1 && printf 'yes' || printf 'NO'; }
 _hoplon_doctor() {
   printf 'hoplon doctor\n'
   printf '  repo                %s\n' "$HOPLON_HOME"
-  printf '  opencode            %s\n' "$([ -x "$HOPLON_HOME/bin/opencode" ] && "$HOPLON_HOME/bin/opencode" --version 2>/dev/null || echo missing)"
+  printf '  opencode            %s\n' "$([ -x "$HOPLON_HOME/bin/opencode" ] && "$HOPLON_HOME/bin/opencode" --version 2> /dev/null || echo missing)"
   printf '  VENICE_API_KEY      %s\n' "$([ -n "${VENICE_API_KEY:-}" ] && echo set || echo MISSING)"
   printf '  bwrap (sandbox)     %s\n' "$(_hoplon_have bwrap)"
   printf '  node / npx          %s / %s\n' "$(_hoplon_have node)" "$(_hoplon_have npx)"
@@ -115,7 +122,7 @@ _hoplon_doctor() {
   for _b in nmap nuclei sqlmap ffuf msfconsole ghidra; do printf '%s:%s ' "$_b" "$(_hoplon_have "$_b")"; done
   printf '\n'
   printf '  venice reachable    '
-  if command -v curl >/dev/null 2>&1 && curl -fsS --max-time 6 https://api.venice.ai/api/v1/models >/dev/null 2>&1; then
+  if command -v curl > /dev/null 2>&1 && curl -fsS --max-time 6 https://api.venice.ai/api/v1/models > /dev/null 2>&1; then
     printf 'yes\n'
   else
     printf 'no (offline or curl missing)\n'
@@ -137,24 +144,40 @@ mkdir -p "$OC/themes" "$OC/agents" "$OC/plugins" "$HOME/.omo"
 # Copy via a temp file and rename, so a concurrent launch never reads a
 # half-written config.
 _hoplon_seed() {
-  cp -f "$1" "$2.hoplon-tmp.$$" 2>/dev/null && mv -f "$2.hoplon-tmp.$$" "$2" 2>/dev/null || true
+  cp -f "$1" "$2.hoplon-tmp.$$" 2> /dev/null && mv -f "$2.hoplon-tmp.$$" "$2" 2> /dev/null || true
 }
 _hoplon_seed "$HOPLON_HOME/config/opencode.jsonc" "$OC/opencode.jsonc"
-_hoplon_seed "$HOPLON_HOME/config/tui.json"       "$OC/tui.json"
-_hoplon_seed "$HOPLON_HOME/config/omo.jsonc"      "$HOME/.omo/omo.jsonc"
+_hoplon_seed "$HOPLON_HOME/config/tui.json" "$OC/tui.json"
+if [ "$HOPLON_ENABLE_OMO" != "0" ]; then
+  _hoplon_seed "$HOPLON_HOME/config/omo.jsonc" "$HOME/.omo/omo.jsonc"
+fi
 for _f in "$HOPLON_HOME"/themes/*.json; do [ -f "$_f" ] && _hoplon_seed "$_f" "$OC/themes/$(basename "$_f")"; done
-for _f in "$HOPLON_HOME"/agents/*.md;   do [ -f "$_f" ] && _hoplon_seed "$_f" "$OC/agents/$(basename "$_f")"; done
-for _f in "$HOPLON_HOME"/tui/*.tsx;     do [ -f "$_f" ] && _hoplon_seed "$_f" "$OC/plugins/$(basename "$_f")"; done
+for _f in "$HOPLON_HOME"/agents/*.md; do [ -f "$_f" ] && _hoplon_seed "$_f" "$OC/agents/$(basename "$_f")"; done
+for _f in "$HOPLON_HOME"/tui/*.tsx; do [ -f "$_f" ] && _hoplon_seed "$_f" "$OC/plugins/$(basename "$_f")"; done
+
+# With OMO disabled, remove the oh-my-openagent plugin line from the seeded
+# OpenCode config and repoint default_agent at a built-in agent. The configured
+# default (sisyphus) is only registered by OMO, so leaving it would make OpenCode
+# fail to start. Temp file plus rename keeps the swap atomic.
+if [ "$HOPLON_ENABLE_OMO" = "0" ] && [ -f "$OC/opencode.jsonc" ]; then
+  _stripped="$OC/opencode.jsonc.hoplon-strip.$$"
+  if sed -e '/oh-my-openagent@/d' -e 's/"default_agent": "sisyphus"/"default_agent": "build"/' \
+    "$OC/opencode.jsonc" > "$_stripped" 2> /dev/null; then
+    mv -f "$_stripped" "$OC/opencode.jsonc" 2> /dev/null || rm -f "$_stripped"
+  else
+    rm -f "$_stripped"
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 # Git identity for agent-run commits. Snapshots need no identity; explicit
 # commits do. safe.directory=* avoids dubious-ownership failures when the repo
 # is copied across machines or users.
 # ---------------------------------------------------------------------------
-if command -v git >/dev/null 2>&1 && [ ! -f "$HOME/.gitconfig" ]; then
-  git config --file "$HOME/.gitconfig" user.name  "Hoplon Operator"        2>/dev/null || true
-  git config --file "$HOME/.gitconfig" user.email "operator@hoplon.local"  2>/dev/null || true
-  git config --file "$HOME/.gitconfig" --add safe.directory '*'            2>/dev/null || true
+if command -v git > /dev/null 2>&1 && [ ! -f "$HOME/.gitconfig" ]; then
+  git config --file "$HOME/.gitconfig" user.name "Hoplon Operator" 2> /dev/null || true
+  git config --file "$HOME/.gitconfig" user.email "operator@hoplon.local" 2> /dev/null || true
+  git config --file "$HOME/.gitconfig" --add safe.directory '*' 2> /dev/null || true
 fi
 
 # ---------------------------------------------------------------------------
@@ -185,27 +208,44 @@ HOPLON_OMO_BAK=""
 HOPLON_OMO_MODE=""
 _hoplon_marker="HOPLON - Oh My OpenAgent"
 
+# Original file mode lookup. GNU coreutils uses `stat -c %a`; BSD/macOS uses
+# `stat -f %Lp`.
+_hoplon_file_mode() {
+  case "$(uname -s)" in
+    Darwin | *BSD*) stat -f '%Lp' "$1" 2> /dev/null || true ;;
+    *) stat -c '%a' "$1" 2> /dev/null || true ;;
+  esac
+}
+
 _hoplon_restore_omo() {
   if [ -n "$HOPLON_OMO_RESTORE" ] && [ -f "$HOPLON_OMO_BAK" ]; then
-    cp -f "$HOPLON_OMO_BAK" "$HOPLON_OMO_RESTORE.hoplon-restore.$$" 2>/dev/null &&
-      mv -f "$HOPLON_OMO_RESTORE.hoplon-restore.$$" "$HOPLON_OMO_RESTORE" 2>/dev/null || true
-    # cp creates the restored file with the backup's mode, so re-apply the
-    # original file mode captured at takeover time.
-    [ -n "${HOPLON_OMO_MODE:-}" ] && chmod "$HOPLON_OMO_MODE" "$HOPLON_OMO_RESTORE" 2>/dev/null || true
+    if cp -f "$HOPLON_OMO_BAK" "$HOPLON_OMO_RESTORE.hoplon-restore.$$" 2> /dev/null &&
+      mv -f "$HOPLON_OMO_RESTORE.hoplon-restore.$$" "$HOPLON_OMO_RESTORE" 2> /dev/null; then
+      # cp creates the restored file with the backup's mode, so re-apply the
+      # original file mode captured at takeover time.
+      [ -n "${HOPLON_OMO_MODE:-}" ] && chmod "$HOPLON_OMO_MODE" "$HOPLON_OMO_RESTORE" 2> /dev/null || true
+      # Restore succeeded; drop the backup so a later run cannot mistake it for
+      # current host content.
+      rm -f "$HOPLON_OMO_BAK" 2> /dev/null || true
+    fi
   fi
 }
 trap _hoplon_restore_omo EXIT INT TERM HUP
 
-if [ "${HOPLON_OMO_TAKEOVER:-1}" != "0" ]; then
+if [ "$HOPLON_ENABLE_OMO" != "0" ] && [ "${HOPLON_OMO_TAKEOVER:-1}" != "0" ]; then
   _d="$PWD"
   _conflict=""
   while :; do
     # Stop at the isolated home or anywhere inside this repo: those .omo dirs
     # are Hoplon's own and must never be treated as a foreign host config.
-    case "$_d" in "$HOME"|"$HOPLON_HOME"|"$HOPLON_HOME"/*) break ;; esac
+    case "$_d" in "$HOME" | "$HOPLON_HOME" | "$HOPLON_HOME"/*) break ;; esac
     if [ -d "$_d/.omo" ] && [ ! -L "$_d/.omo" ]; then
-      if [ -f "$_d/.omo/omo.jsonc" ]; then _conflict="$_d/.omo/omo.jsonc"; break; fi
-      if [ -f "$_d/.omo/omo.json" ];  then _conflict="$_d/.omo/omo.json";  break; fi
+      if [ -f "$_d/.omo/omo.jsonc" ]; then
+        _conflict="$_d/.omo/omo.jsonc"; break
+      fi
+      if [ -f "$_d/.omo/omo.json" ]; then
+        _conflict="$_d/.omo/omo.json"; break
+      fi
     fi
     [ "$_d" = "/" ] && break
     _d="$(dirname "$_d")"
@@ -214,17 +254,21 @@ if [ "${HOPLON_OMO_TAKEOVER:-1}" != "0" ]; then
   if [ -n "$_conflict" ]; then
     _bak="${_conflict}.hoplon-hostbak"
     # Self-heal: if a previous run died before restoring, put the host file back.
-    if [ -f "$_bak" ] && grep -q "$_hoplon_marker" "$_conflict" 2>/dev/null; then
-      cp -f "$_bak" "$_conflict" 2>/dev/null || true
+    if [ -f "$_bak" ] && grep -q "$_hoplon_marker" "$_conflict" 2> /dev/null; then
+      cp -f "$_bak" "$_conflict" 2> /dev/null || true
     fi
-    HOPLON_OMO_MODE="$(stat -c '%a' "$_conflict" 2>/dev/null || true)"
-    if [ ! -f "$_bak" ]; then
-      cp -f "$_conflict" "$_bak" 2>/dev/null || true
-      chmod 600 "$_bak" 2>/dev/null || true
+    HOPLON_OMO_MODE="$(_hoplon_file_mode "$_conflict")"
+    # A real host file (no Hoplon marker) is authoritative. Always refresh the
+    # backup from its current content so host edits made since an earlier run
+    # survive the restore. If the conflict still holds Hoplon's marker, the
+    # self-heal above could not restore it, so leave the existing backup alone.
+    if ! grep -q "$_hoplon_marker" "$_conflict" 2> /dev/null; then
+      cp -f "$_conflict" "$_bak" 2> /dev/null || true
+      chmod 600 "$_bak" 2> /dev/null || true
     fi
     # Write atomically so a killed run never leaves a half-written config.
-    if cp -f "$HOPLON_HOME/config/omo.jsonc" "$_conflict.hoplon-new.$$" 2>/dev/null &&
-       mv -f "$_conflict.hoplon-new.$$" "$_conflict" 2>/dev/null; then
+    if cp -f "$HOPLON_HOME/config/omo.jsonc" "$_conflict.hoplon-new.$$" 2> /dev/null &&
+      mv -f "$_conflict.hoplon-new.$$" "$_conflict" 2> /dev/null; then
       HOPLON_OMO_RESTORE="$_conflict"
       HOPLON_OMO_BAK="$_bak"
       printf 'hoplon: host OMO config at %s would override Venice routing; taking it over for this session (restored on exit).\n' "$_conflict" >&2
@@ -244,7 +288,7 @@ fi
 # CAP_NET_RAW and will not work inside; run those unsandboxed.
 # ---------------------------------------------------------------------------
 if [ "${HOPLON_SANDBOX:-0}" != "0" ]; then
-  if command -v bwrap >/dev/null 2>&1; then
+  if command -v bwrap > /dev/null 2>&1; then
     _hoplon_sb=(bwrap --die-with-parent
       --unshare-user --unshare-pid --unshare-ipc --unshare-uts
       --ro-bind /usr /usr --ro-bind-try /bin /bin --ro-bind-try /lib /lib
@@ -252,7 +296,7 @@ if [ "${HOPLON_SANDBOX:-0}" != "0" ]; then
       --ro-bind /etc /etc --ro-bind-try /opt /opt --ro-bind-try /run /run
       --proc /proc --dev /dev --tmpfs /tmp
       --bind "$HOPLON_HOME" "$HOPLON_HOME")
-    case "$PWD" in "$HOPLON_HOME"|"$HOPLON_HOME"/*) : ;; *) _hoplon_sb+=(--bind "$PWD" "$PWD") ;; esac
+    case "$PWD" in "$HOPLON_HOME" | "$HOPLON_HOME"/*) : ;; *) _hoplon_sb+=(--bind "$PWD" "$PWD") ;; esac
     # The host home is hidden, so tools installed per-user (pipx, cargo, go,
     # bun) would be missing. HOPLON_SANDBOX_BINS=1 exposes those bin dirs
     # read-only. Everything in /usr is already available without this.

@@ -12,7 +12,7 @@
 # =============================================================================
 set -euo pipefail
 
-HOPLON_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd -P)"
+HOPLON_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." > /dev/null 2>&1 && pwd -P)"
 
 # Pull optional settings (version, digest) from .env when present, so a pinned
 # HOPLON_OPENCODE_SHA256 in .env actually takes effect.
@@ -27,16 +27,21 @@ REPO="${HOPLON_OPENCODE_REPO:-anomalyco/opencode}"
 OMO_SPEC="oh-my-openagent@5.0.0-beta.62"
 MC_SPEC="@cortexkit/opencode-magic-context@0.42.2"
 
+# OMO harness toggle. When 0, the oh-my-openagent cache is not pre-seeded.
+HOPLON_ENABLE_OMO="${HOPLON_ENABLE_OMO:-1}"
+
 os="$(uname -s | tr '[:upper:]' '[:lower:]')"
 arch="$(uname -m)"
 case "$arch" in
-  x86_64|amd64) arch="x64" ;;
-  aarch64|arm64) arch="arm64" ;;
+  x86_64 | amd64) arch="x64" ;;
+  aarch64 | arm64) arch="arm64" ;;
 esac
 case "$os" in
-  linux)  asset="opencode-linux-${arch}.tar.gz" ;;
+  linux) asset="opencode-linux-${arch}.tar.gz" ;;
   darwin) asset="opencode-darwin-${arch}.zip" ;;
-  *) printf 'hoplon: unsupported OS: %s\n' "$os" >&2; exit 1 ;;
+  *)
+    printf 'hoplon: unsupported OS: %s\n' "$os" >&2; exit 1
+    ;;
 esac
 url="https://github.com/${REPO}/releases/download/v${VERSION}/${asset}"
 
@@ -54,7 +59,15 @@ fi
 # Optional integrity check. Pin the digest in .env or the environment to make
 # a tampered or partial download fail closed.
 if [ -n "${HOPLON_OPENCODE_SHA256:-}" ]; then
-  printf '%s  %s\n' "$HOPLON_OPENCODE_SHA256" "$tmp/$asset" | sha256sum -c - >/dev/null 2>&1 || {
+  if command -v sha256sum > /dev/null 2>&1; then
+    _sha=(sha256sum -c -)
+  elif command -v shasum > /dev/null 2>&1; then
+    _sha=(shasum -a 256 -c -)
+  else
+    printf 'hoplon: no sha256 tool found (need sha256sum or shasum)\n' >&2
+    exit 1
+  fi
+  printf '%s  %s\n' "$HOPLON_OPENCODE_SHA256" "$tmp/$asset" | "${_sha[@]}" > /dev/null 2>&1 || {
     printf 'hoplon: checksum mismatch for %s\n' "$asset" >&2
     exit 1
   }
@@ -63,10 +76,20 @@ fi
 
 case "$asset" in
   *.tar.gz) tar --no-same-owner --no-same-permissions -xzf "$tmp/$asset" -C "$tmp" ;;
-  *.zip)    unzip -q "$tmp/$asset" -d "$tmp" ;;
+  *.zip) unzip -q "$tmp/$asset" -d "$tmp" ;;
 esac
 
-bin="$(find "$tmp" -type f -name opencode -print -quit)"
+# POSIX-safe lookup: `find -print -quit` is a GNU extension (BSD find lacks
+# -quit). List matches to a file and take the first, which also avoids a
+# find | head pipe whose SIGPIPE would trip pipefail.
+bin=""
+find "$tmp" -type f -name opencode 2> /dev/null > "$tmp/.hoplon-bin-list"
+while IFS= read -r _cand; do
+  if [ -n "$_cand" ] && [ -f "$_cand" ]; then
+    bin="$_cand"
+    break
+  fi
+done < "$tmp/.hoplon-bin-list"
 if [ -z "$bin" ]; then
   printf 'hoplon: could not find the opencode binary in the archive\n' >&2
   exit 1
@@ -85,9 +108,14 @@ printf 'hoplon: installed %s\n' "$HOPLON_HOME/bin/opencode"
 dst_dir="$HOPLON_HOME/home/.cache/opencode/packages"
 mkdir -p "$dst_dir"
 for _spec in "$OMO_SPEC" "$MC_SPEC"; do
+  # The MIT-licensed magic-context cache is always worth seeding; the OMO cache
+  # is skipped when the harness is disabled.
+  if [ "$_spec" = "$OMO_SPEC" ] && [ "$HOPLON_ENABLE_OMO" = "0" ]; then
+    continue
+  fi
   src_cache="${HOME:-}/.cache/opencode/packages/${_spec}"
   if [ -d "$src_cache" ]; then
-    cp -a "$src_cache" "$dst_dir/" 2>/dev/null || true
+    cp -a "$src_cache" "$dst_dir/" 2> /dev/null || true
     printf 'hoplon: pre-seeded plugin cache %s\n' "$_spec"
   fi
 done
@@ -100,13 +128,13 @@ _host_home="${HOME:-}"
 _home="$HOPLON_HOME/home"
 mkdir -p "$_home/.cache/opencode" "$_home/.omo"
 if [ -d "$_host_home/.cache/opencode/bin" ]; then
-  cp -a "$_host_home/.cache/opencode/bin" "$_home/.cache/opencode/" 2>/dev/null || true
+  cp -a "$_host_home/.cache/opencode/bin" "$_home/.cache/opencode/" 2> /dev/null || true
 fi
 if [ -f "$_host_home/.cache/opencode/models.json" ]; then
-  cp -f "$_host_home/.cache/opencode/models.json" "$_home/.cache/opencode/" 2>/dev/null || true
+  cp -f "$_host_home/.cache/opencode/models.json" "$_home/.cache/opencode/" 2> /dev/null || true
 fi
 if [ -d "$_host_home/.omo/runtime" ]; then
-  cp -a "$_host_home/.omo/runtime" "$_home/.omo/" 2>/dev/null || true
+  cp -a "$_host_home/.omo/runtime" "$_home/.omo/" 2> /dev/null || true
 fi
 printf 'hoplon: vendored host caches (LSP bin, models.dev, OMO runtime) when present\n'
 
