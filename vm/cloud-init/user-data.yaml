@@ -1,0 +1,155 @@
+#cloud-config
+# =============================================================================
+# Hoplon VM cloud-init user-data (NoCloud seed).
+#
+# scripts/vm.sh renders this template before building the seed ISO. It fills in
+# the operator SSH public key, the tools level (none, core, or full), the Hoplon
+# git remote, and the optional 9p share tag. The placeholders it substitutes are
+# the double-underscore tokens named in scripts/vm.sh; do not edit them here.
+#
+# The file is valid YAML as written, so it parses without rendering. It is a
+# template: only the rendered copy built by vm.sh should ever reach a guest.
+# =============================================================================
+
+hostname: hoplon-vm
+fqdn: hoplon-vm
+manage_etc_hosts: true
+
+users:
+  - name: hoplon
+    gecos: Hoplon operator
+    groups:
+      - adm
+      - sudo
+    shell: /bin/bash
+    lock_passwd: true
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys:
+      - "__HOPLON_SSH_PUBKEY__"
+
+ssh_pwauth: false
+disable_root: true
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - git
+  - curl
+  - ca-certificates
+  - tmux
+  - sudo
+  - openssh-server
+
+# The base image is small; grow the root partition and filesystem to fill the
+# disk that vm.sh resized.
+growpart:
+  mode: auto
+  devices:
+    - "/"
+resize_rootfs: true
+
+write_files:
+  # Rendered settings consumed by the bootstrap script below.
+  - path: /etc/hoplon-vm.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      # Written by scripts/vm.sh when the seed ISO was built.
+      HOPLON_VM_TOOLS=__HOPLON_VM_TOOLS__
+      HOPLON_REPO_URL=__HOPLON_REPO_URL__
+      HOPLON_VM_SHARE_TAG=__HOPLON_VM_SHARE_TAG__
+  # First-boot provisioning. Kept as a file so runcmd stays a single, auditable
+  # command; everything it does is idempotent and logged.
+  - path: /usr/local/sbin/hoplon-vm-bootstrap
+    owner: root:root
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      # Hoplon VM first-boot provisioning. Idempotent. Output is appended to
+      # /var/log/hoplon-cloud-init.log.
+      set -uo pipefail
+
+      exec >> /var/log/hoplon-cloud-init.log 2>&1
+      printf '\n=== hoplon-vm bootstrap %s ===\n' "$(date -Is)"
+
+      # shellcheck source=/dev/null
+      . /etc/hoplon-vm.conf 2> /dev/null || true
+      HOPLON_VM_TOOLS="${HOPLON_VM_TOOLS:-none}"
+      HOPLON_REPO_URL="${HOPLON_REPO_URL:-https://github.com/ShibbityShwab/hoplon}"
+      HOPLON_SRC=/opt/hoplon
+
+      # Optional engagements 9p share. Its absence is normal and never fatal.
+      if [ -n "${HOPLON_VM_SHARE_TAG:-}" ] && ! mountpoint -q /mnt/engagements; then
+        mkdir -p /mnt/engagements
+        modprobe 9pnet_virtio 2> /dev/null || true
+        modprobe 9p 2> /dev/null || true
+        if mount -t 9p -o trans=virtio,version=9p2000.L,ro "$HOPLON_VM_SHARE_TAG" /mnt/engagements; then
+          printf 'hoplon: mounted engagements share %s\n' "$HOPLON_VM_SHARE_TAG"
+        else
+          printf 'hoplon: no 9p share for tag %s\n' "$HOPLON_VM_SHARE_TAG"
+        fi
+      fi
+
+      if [ "$HOPLON_VM_TOOLS" = "none" ]; then
+        printf 'hoplon: HOPLON_VM_TOOLS=none, skipping toolchain and Hoplon install\n'
+        exit 0
+      fi
+
+      # The toolchain installer rides along on the NoCloud seed ISO as
+      # /toolchain.sh. Find the seed by volume label, then mount it read-only.
+      SEED_MNT=/mnt/hoplon-seed
+      TOOLCHAIN_SRC=""
+      for cand in /var/lib/cloud/seed/nocloud/toolchain.sh "$SEED_MNT/toolchain.sh"; do
+        if [ -f "$cand" ]; then
+          TOOLCHAIN_SRC="$cand"
+          break
+        fi
+      done
+      if [ -z "$TOOLCHAIN_SRC" ]; then
+        SEED_DEV="$(blkid -L cidata 2> /dev/null || true)"
+        if [ -z "$SEED_DEV" ]; then
+          SEED_DEV=/dev/sr0
+        fi
+        mkdir -p "$SEED_MNT"
+        if mount -o ro "$SEED_DEV" "$SEED_MNT" 2> /dev/null && [ -f "$SEED_MNT/toolchain.sh" ]; then
+          TOOLCHAIN_SRC="$SEED_MNT/toolchain.sh"
+        fi
+      fi
+
+      if [ -n "$TOOLCHAIN_SRC" ]; then
+        install -m 0755 "$TOOLCHAIN_SRC" /opt/hoplon-toolchain.sh
+        printf 'hoplon: running toolchain installer --%s\n' "$HOPLON_VM_TOOLS"
+        /opt/hoplon-toolchain.sh "--$HOPLON_VM_TOOLS" || printf 'hoplon: toolchain installer exited non-zero\n'
+      else
+        # Fallback when the host had no scripts/toolchain.sh to embed.
+        printf 'hoplon: no toolchain installer on the seed, installing essentials\n'
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get -y update || true
+        apt-get -y install git curl ca-certificates tmux sudo openssh-server \
+          build-essential python3 python3-venv jq unzip || true
+      fi
+
+      # Install Hoplon so the `hoplon` command exists for the operator user.
+      if [ ! -d "$HOPLON_SRC/.git" ]; then
+        rm -rf "$HOPLON_SRC"
+        if git clone --depth 1 "$HOPLON_REPO_URL" "$HOPLON_SRC"; then
+          printf 'hoplon: cloned %s\n' "$HOPLON_REPO_URL"
+        else
+          printf 'hoplon: clone failed: %s\n' "$HOPLON_REPO_URL"
+        fi
+      fi
+      if [ -x "$HOPLON_SRC/scripts/install.sh" ]; then
+        if runuser -u hoplon -- env HOPLON_HOME="$HOPLON_SRC" HOME=/home/hoplon \
+          "$HOPLON_SRC/scripts/install.sh"; then
+          printf 'hoplon: installed for user hoplon\n'
+        else
+          printf 'hoplon: install.sh exited non-zero\n'
+        fi
+      fi
+      printf '=== hoplon-vm bootstrap done %s ===\n' "$(date -Is)"
+
+runcmd:
+  - /usr/local/sbin/hoplon-vm-bootstrap
+
+final_message: "hoplon-vm cloud-init finished after $UPTIME seconds"

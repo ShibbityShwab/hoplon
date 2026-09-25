@@ -110,6 +110,20 @@ uses OMO, the host file is temporarily swapped and restored.
 
 Set `HOPLON_OMO_TAKEOVER=0` to disable the takeover and let the host config win.
 
+## Isolation tiers
+
+`HOPLON_ISOLATION` chooses the boundary:
+
+| Value | Boundary | Kernel | Page |
+| --- | --- | --- | --- |
+| `host` (default) | isolated HOME plus optional bubblewrap | host | [Sandbox](sandbox.md) |
+| `vm` | full Debian guest | own, under QEMU/KVM | [QEMU guest](vm.md) |
+| `nix` | declarative NixOS guest | own, under QEMU/KVM | [NixOS guest](nixos-vm.md) |
+
+`host` isolates state but shares the host kernel. `vm` and `nix` give the guest
+its own kernel, filesystem, and user, so nothing it does reaches the host OS.
+Both guests are self-contained and provision their own toolchain.
+
 ## What is not isolated
 
 - The network. The agent can reach the internet, which the Venice API requires.

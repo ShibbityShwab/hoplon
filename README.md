@@ -21,6 +21,7 @@ Hoplon is an OpenCode distribution for authorized offensive security work. It ru
 | **Venice only, uncensored** | `provider.venice.whitelist` allows exactly seven uncensored models. The allowlist is enforced, not a suggestion. |
 | **Portable and isolated** | Its own `HOME` and all four XDG dirs live under `./home`. No host OpenCode or OMO state is read or written. |
 | **Sandbox mode** | `HOPLON_SANDBOX=1` wraps the runtime in bubblewrap, hiding the host filesystem while keeping the network for the API. |
+| **Own VM or OS** | `HOPLON_ISOLATION=vm` boots a Debian QEMU/KVM guest; `nix` builds a declarative NixOS guest. Each has its own kernel, so nothing reaches the host OS. |
 | **ROE-gated specialists** | Six red-team subagents and five offense skills, gated by a mandatory `redteam-roe` skill. |
 | **Pinned MCP tooling** | Venice's official MCP server is enabled by default; every `npx` and `uvx` server is version-pinned. |
 | **Reproducible** | A shell test suite and CI cover the config, the launcher, and the no-dash rule. |
@@ -98,6 +99,9 @@ Set these in `.env` (the launcher sources it) or in the environment:
 - [Getting started](docs/getting-started.md)
 - [Installation](docs/installation.md)
 - [Sandbox](docs/sandbox.md)
+- [Isolation](docs/isolation.md)
+- [QEMU guest](docs/vm.md)
+- [NixOS guest](docs/nixos-vm.md)
 - [Models](docs/models.md)
 - [MCP servers](docs/mcp-servers.md)
 - [Rules of engagement](docs/rules-of-engagement.md)

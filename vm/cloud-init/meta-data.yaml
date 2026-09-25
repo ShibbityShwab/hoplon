@@ -1,0 +1,6 @@
+# Hoplon VM NoCloud metadata.
+#
+# scripts/vm.sh stages this file into the seed ISO as the extensionless
+# `meta-data` that cloud-init's NoCloud datasource requires.
+instance-id: hoplon-vm
+local-hostname: hoplon-vm

@@ -54,6 +54,8 @@ nav:
   - MCP servers: mcp-servers.md
   - Sandbox: sandbox.md
   - Isolation: isolation.md
+  - QEMU guest: vm.md
+  - NixOS guest: nixos-vm.md
   - Magic Context: magic-context.md
   - Rules of Engagement: rules-of-engagement.md
   - OMO: omo.md

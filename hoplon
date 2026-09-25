@@ -30,6 +30,11 @@
 #   hoplon version           print the Hoplon and opencode versions, then exit
 #   hoplon update            update Hoplon in place (scripts/update.sh)
 #   hoplon --help            opencode CLI help
+#
+# HOPLON_ISOLATION selects where the stack runs:
+#   host        (default) run on this machine, as described above
+#   vm          run inside a QEMU/KVM guest (scripts/vm.sh)
+#   nix         boot the declarative NixOS guest (scripts/nix-vm.sh, flake.nix)
 # =============================================================================
 set -euo pipefail
 
@@ -161,6 +166,34 @@ case "${1:-}" in
   doctor)
     _hoplon_doctor
     exit 0
+    ;;
+esac
+
+# ---------------------------------------------------------------------------
+# Isolation backend. `host` (default) keeps the behavior above untouched.
+# `vm` hands off to the QEMU/KVM guest in scripts/vm.sh. `nix` boots the
+# declarative NixOS guest from flake.nix via scripts/nix-vm.sh. Handled before
+# the preflight and seed phase so a host launch takes the same path as before.
+# ---------------------------------------------------------------------------
+case "${HOPLON_ISOLATION:-host}" in
+  host) : ;;
+  vm)
+    if [ ! -x "$HOPLON_HOME/scripts/vm.sh" ]; then
+      printf 'hoplon: HOPLON_ISOLATION=vm but scripts/vm.sh is missing or not executable.\n' >&2
+      exit 1
+    fi
+    exec "$HOPLON_HOME/scripts/vm.sh" "$@"
+    ;;
+  nix)
+    if [ ! -x "$HOPLON_HOME/scripts/nix-vm.sh" ]; then
+      printf 'hoplon: HOPLON_ISOLATION=nix but scripts/nix-vm.sh is missing or not executable.\n' >&2
+      exit 1
+    fi
+    exec "$HOPLON_HOME/scripts/nix-vm.sh" "$@"
+    ;;
+  *)
+    printf 'hoplon: invalid HOPLON_ISOLATION=%s (expected host, vm, or nix).\n' "$HOPLON_ISOLATION" >&2
+    exit 1
     ;;
 esac
 
