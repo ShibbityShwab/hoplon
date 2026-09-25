@@ -169,7 +169,8 @@ models are used where it counts, with strong agentic models for pure coding.
 | --- | --- |
 | visual-engineering, deep, ultrabrain, unspecified-high | `venice/qwen-3-6-plus` |
 | quick, unspecified-low | `venice/olafangensan-glm-4.7-flash-heretic` |
-| artistry, writing | `venice/venice-uncensored-1-2` |
+| writing | `venice/venice-uncensored-1-2` |
+| artistry | `venice/venice-uncensored-role-play` |
 
 The declared models, with their context and output limits, are:
 
@@ -182,10 +183,11 @@ The declared models, with their context and output limits, are:
 | `venice-uncensored-1-2` | 128,000 | 8,192 | Most-uncensored Venice model: chat, vision, tools |
 | `gemma-4-uncensored` | 256,000 | 8,192 | Uncensored vision chat |
 
-Only the uncensored set is declared. Non-uncensored Venice models
-(`z-ai-glm-5-3-flash`, `deepseek-v4-pro-0813`, and the Grok/GPT/Gemini/Claude
-families) are omitted because Venice documents that upstream hosts may still
-apply their own filtering.
+Only the uncensored set is selectable. `provider.venice.whitelist` restricts the
+catalog to the seven models above, so the non-uncensored Venice models (Groks,
+GPTs, Geminis, Claudes, and the non-uncensored community models) cannot be chosen
+at all. Verified: `opencode models venice` lists exactly those seven, and a
+request for any other id is rejected the same way as a nonexistent model.
 
 Routing is tuned for uncensored use. Every route is one of Venice's eleven
 `uncensored` models; the rest of the catalog is avoided because upstream hosts
@@ -239,6 +241,16 @@ marks it community-maintained with no SLA.
 Globally, the weapon tools are gated off (`nmap*`, `pentest*`, `nuclei*`,
 `sqlmap*`, `ffuf*`, `burp*`, `metasploit*`, `bloodhound*`, `ghidra*` are all
 `false`). An agent re-enables only what it owns.
+
+Every `npx` and `uvx` server is version-pinned (`@veniceai/mcp-server@0.2.0`,
+`@burtthecoder/mcp-shodan@1.0.32`, `cve-mcp-server==0.5.0`, `mcp-nmap-server@1.0.1`,
+`pentest-mcp@0.9.0`). The four `docker` images (`nuclei-mcp`, `sqlmap-mcp`,
+`ffuf-mcp`, `ghidra-mcp`) are locally built and currently tagged `:latest`; pin
+them by tagging each build with the bundled tool version and a date, then pinning
+the digest (`docker inspect --format '{{index .RepoDigests 0}}' <image:tag>`).
+The `metasploit` and `bloodhound` servers run local checkouts under `/opt`; pin
+those by git commit. `mcp-nmap-server` has not published since January 2025 and
+`cve-mcp-server` since May 2025, so treat both as frozen-at-pin.
 
 ## Red-team agents
 
@@ -335,8 +347,8 @@ first use and are not bundled:
 - **OMO plugin**. Pre-seed the cache with `scripts/install.sh` (it copies a host
   cache if present), or vendor the plugin and reference it as a path plugin.
 - **LSP servers**. Downloaded on first use.
-- **`npx` / `uvx` MCP servers**. Downloaded on first use, including the Venice
-  MCP server (`@veniceai/mcp-server@0.2.0`).
+- **`npx` / `uvx` MCP servers**. Downloaded on first use; all version-pinned,
+  including the Venice MCP server (`@veniceai/mcp-server@0.2.0`).
 - **OMO's ast-grep runtime**. Downloaded on first use.
 
 For a fully offline copy, vendor all of the above. The opencode binary itself is
@@ -348,6 +360,9 @@ rather than committed.
 - **Provider.** `opencode models venice` resolves through the built-in venice
   provider (no `npm` override), so `venice_parameters` and reasoning lower
   correctly, and declared limits match the live `/models` response.
+- **Uncensored-only.** `provider.venice.whitelist` restricts the catalog to the
+  seven uncensored models; `opencode models venice` lists exactly those, and any
+  other id is rejected like a nonexistent model.
 - **Routing.** OMO resolves every agent to a Venice uncensored model, with
   reasoning effort only on models that advertise it. The launcher keeps that
   routing when a host OMO config sits above the working directory, and restores
