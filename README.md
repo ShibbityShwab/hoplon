@@ -96,11 +96,20 @@ whether Venice is reachable.
 `HOPLON_SANDBOX=1` wraps opencode in `bubblewrap`. The host filesystem is hidden
 except this repository and the target directory, the network stays up for the
 Venice API, and the process runs in its own user, pid, ipc, and uts namespaces.
-It requires `bwrap`. Two things do not work inside: raw-socket tooling
-(`nmap -sS`, ARP sweeps, packet capture) needs `CAP_NET_RAW`, and host user
-binaries under the real `~/.local/bin` are not mounted. Run those unsandboxed
-with `HOPLON_SANDBOX=0`. Use the sandbox when handling untrusted content or
-running risky code, not for raw-socket reconnaissance.
+It requires `bwrap`. Everything under `/usr` is available and works: `grep`,
+`sed`, `awk`, `curl` (TLS verified), `wget`, `ping`, `dig`, `openssl`, `ssh`,
+`nmap`, `git`, `python3`, `node`, `npx`, `uvx`, `jq`, `docker`, `rg`, and the
+rest of coreutils. DNS resolves, HTTPS reaches Venice, and `nmap -sT` (TCP
+connect) works.
+
+Two limits: raw-socket tooling (`nmap -sS`, ARP sweeps, packet capture) needs
+`CAP_NET_RAW` and fails inside, and tools installed in the host user home
+(`~/.local/bin`, `~/.cargo/bin`, `~/go/bin`, `~/.bun/bin`) are not mounted unless
+you set `HOPLON_SANDBOX_BINS=1`. Host credentials under `~/.ssh` and `~/.config`
+are not visible, `/etc/shadow` is not readable, and `/usr` is read-only. Run
+raw-socket work unsandboxed with `HOPLON_SANDBOX=0`. Use the sandbox when
+handling untrusted content or running risky code, not for raw-socket
+reconnaissance.
 
 Context management is handled by the Magic Context plugin
 (`@cortexkit/opencode-magic-context@0.42.2`), which is why OMO's own

@@ -253,6 +253,14 @@ if [ "${HOPLON_SANDBOX:-0}" != "0" ]; then
       --proc /proc --dev /dev --tmpfs /tmp
       --bind "$HOPLON_HOME" "$HOPLON_HOME")
     case "$PWD" in "$HOPLON_HOME"|"$HOPLON_HOME"/*) : ;; *) _hoplon_sb+=(--bind "$PWD" "$PWD") ;; esac
+    # The host home is hidden, so tools installed per-user (pipx, cargo, go,
+    # bun) would be missing. HOPLON_SANDBOX_BINS=1 exposes those bin dirs
+    # read-only. Everything in /usr is already available without this.
+    if [ "${HOPLON_SANDBOX_BINS:-0}" = "1" ]; then
+      for _b in .local/bin .bun/bin .cargo/bin go/bin; do
+        [ -d "$HOPLON_HOST_HOME/$_b" ] && _hoplon_sb+=(--ro-bind "$HOPLON_HOST_HOME/$_b" "$HOPLON_HOST_HOME/$_b")
+      done
+    fi
     _hoplon_sb+=(--chdir "$PWD" "$HOPLON_HOME/bin/opencode")
     printf 'hoplon: sandbox on (bwrap); host FS hidden except %s and %s\n' "$HOPLON_HOME" "$PWD" >&2
     "${_hoplon_sb[@]}" "$@"
