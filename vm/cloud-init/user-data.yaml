@@ -276,6 +276,15 @@ write_files:
       else
         printf 'hoplon: scripts/hoplon-tool missing; on-demand install unavailable\n'
       fi
+
+      # Link `hoplon` into /usr/local/bin too. install.sh places it in
+      # ~/.local/bin, which a non-login shell (the `ssh -t host hoplon` that
+      # `hoplon vm` runs, or a systemd unit) does not have on PATH, so the
+      # console would otherwise fail to start inside the guest.
+      if [ -x "$HOPLON_SRC/hoplon" ]; then
+        ln -sf "$HOPLON_SRC/hoplon" /usr/local/bin/hoplon
+        printf 'hoplon: linked hoplon into /usr/local/bin\n'
+      fi
       printf '=== hoplon-vm bootstrap done %s ===\n' "$(date -Is)"
 
 runcmd:
