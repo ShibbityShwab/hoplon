@@ -98,6 +98,35 @@ if [ "${HOPLON_SHARE_GH:-0}" = "1" ] && [ -d "$HOPLON_HOST_HOME/.config/gh" ] &&
 fi
 
 # ---------------------------------------------------------------------------
+# `hoplon doctor`: report what this environment can actually do, then exit.
+# Does not seed or launch.
+# ---------------------------------------------------------------------------
+_hoplon_have() { command -v "$1" >/dev/null 2>&1 && printf 'yes' || printf 'NO'; }
+_hoplon_doctor() {
+  printf 'hoplon doctor\n'
+  printf '  repo                %s\n' "$HOPLON_HOME"
+  printf '  opencode            %s\n' "$([ -x "$HOPLON_HOME/bin/opencode" ] && "$HOPLON_HOME/bin/opencode" --version 2>/dev/null || echo missing)"
+  printf '  VENICE_API_KEY      %s\n' "$([ -n "${VENICE_API_KEY:-}" ] && echo set || echo MISSING)"
+  printf '  bwrap (sandbox)     %s\n' "$(_hoplon_have bwrap)"
+  printf '  node / npx          %s / %s\n' "$(_hoplon_have node)" "$(_hoplon_have npx)"
+  printf '  uvx (python MCP)    %s\n' "$(_hoplon_have uvx)"
+  printf '  docker (docker MCP) %s\n' "$(_hoplon_have docker)"
+  printf '  weapons             '
+  for _b in nmap nuclei sqlmap ffuf msfconsole ghidra; do printf '%s:%s ' "$_b" "$(_hoplon_have "$_b")"; done
+  printf '\n'
+  printf '  venice reachable    '
+  if command -v curl >/dev/null 2>&1 && curl -fsS --max-time 6 https://api.venice.ai/api/v1/models >/dev/null 2>&1; then
+    printf 'yes\n'
+  else
+    printf 'no (offline or curl missing)\n'
+  fi
+}
+if [ "${1:-}" = "doctor" ]; then
+  _hoplon_doctor
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
 # Seed phase: repo -> isolated HOME. Copies only, never symlinks. OMO rewrites
 # its config with a temp-file + rename replace, which severs a symlink inode;
 # copying keeps this repo the single source of truth on every launch.
@@ -208,5 +237,29 @@ fi
 # ---------------------------------------------------------------------------
 # Launch. Do not exec: the EXIT trap must run so a taken-over host config is
 # restored when opencode exits.
+#
+# Optional bubblewrap sandbox (HOPLON_SANDBOX=1). The host filesystem is hidden
+# except the repo and the target directory, while the network stays up for the
+# Venice API. Raw-socket tooling (nmap -sS, ARP, packet capture) needs
+# CAP_NET_RAW and will not work inside; run those unsandboxed.
 # ---------------------------------------------------------------------------
-"$HOPLON_HOME/bin/opencode" "$@"
+if [ "${HOPLON_SANDBOX:-0}" != "0" ]; then
+  if command -v bwrap >/dev/null 2>&1; then
+    _hoplon_sb=(bwrap --die-with-parent
+      --unshare-user --unshare-pid --unshare-ipc --unshare-uts
+      --ro-bind /usr /usr --ro-bind-try /bin /bin --ro-bind-try /lib /lib
+      --ro-bind-try /lib64 /lib64 --ro-bind-try /sbin /sbin
+      --ro-bind /etc /etc --ro-bind-try /opt /opt --ro-bind-try /run /run
+      --proc /proc --dev /dev --tmpfs /tmp
+      --bind "$HOPLON_HOME" "$HOPLON_HOME")
+    case "$PWD" in "$HOPLON_HOME"|"$HOPLON_HOME"/*) : ;; *) _hoplon_sb+=(--bind "$PWD" "$PWD") ;; esac
+    _hoplon_sb+=(--chdir "$PWD" "$HOPLON_HOME/bin/opencode")
+    printf 'hoplon: sandbox on (bwrap); host FS hidden except %s and %s\n' "$HOPLON_HOME" "$PWD" >&2
+    "${_hoplon_sb[@]}" "$@"
+  else
+    printf 'hoplon: HOPLON_SANDBOX=1 but bwrap is missing; running unsandboxed\n' >&2
+    "$HOPLON_HOME/bin/opencode" "$@"
+  fi
+else
+  "$HOPLON_HOME/bin/opencode" "$@"
+fi

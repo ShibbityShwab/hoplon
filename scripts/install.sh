@@ -25,6 +25,7 @@ fi
 VERSION="${HOPLON_OPENCODE_VERSION:-1.18.25}"
 REPO="${HOPLON_OPENCODE_REPO:-anomalyco/opencode}"
 OMO_SPEC="oh-my-openagent@5.0.0-beta.62"
+MC_SPEC="@cortexkit/opencode-magic-context@0.42.2"
 
 os="$(uname -s | tr '[:upper:]' '[:lower:]')"
 arch="$(uname -m)"
@@ -81,13 +82,15 @@ printf 'hoplon: installed %s\n' "$HOPLON_HOME/bin/opencode"
 # Offline convenience: pre-seed the OMO plugin cache from the host, if present.
 # The cache dir name must match the plugin spec string in config exactly.
 # ---------------------------------------------------------------------------
-src_cache="${HOME:-}/.cache/opencode/packages/${OMO_SPEC}"
-if [ -d "$src_cache" ]; then
-  dst_dir="$HOPLON_HOME/home/.cache/opencode/packages"
-  mkdir -p "$dst_dir"
-  cp -a "$src_cache" "$dst_dir/" 2>/dev/null || true
-  printf 'hoplon: pre-seeded OMO plugin cache from host\n'
-fi
+dst_dir="$HOPLON_HOME/home/.cache/opencode/packages"
+mkdir -p "$dst_dir"
+for _spec in "$OMO_SPEC" "$MC_SPEC"; do
+  src_cache="${HOME:-}/.cache/opencode/packages/${_spec}"
+  if [ -d "$src_cache" ]; then
+    cp -a "$src_cache" "$dst_dir/" 2>/dev/null || true
+    printf 'hoplon: pre-seeded plugin cache %s\n' "$_spec"
+  fi
+done
 
 # ---------------------------------------------------------------------------
 # Offline convenience: vendor the LSP binaries, the models.dev cache, and OMO's

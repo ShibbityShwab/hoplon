@@ -24,14 +24,21 @@
   "enabled_providers": ["venice"],
 
   // ---------------------------------------------------------------------------
-  // Plugins: the Oh My OpenAgent harness. Keep exactly ONE omo entry.
+  // Plugins: the Oh My OpenAgent harness plus Magic Context for long-session
+  // context management. Keep exactly ONE oh-my-openagent entry. Magic Context
+  // owns compaction, so config/omo.jsonc keeps OMO's preemptive-compaction
+  // hook disabled to avoid two systems compacting at once.
   // ---------------------------------------------------------------------------
-  "plugin": ["oh-my-openagent@5.0.0-beta.62"],
+  "plugin": [
+    "oh-my-openagent@5.0.0-beta.62",
+    "@cortexkit/opencode-magic-context@0.42.2"
+  ],
 
   // ---------------------------------------------------------------------------
   // Permissions: YOLO for red-team speed, with explicit guards on the handful
-  // of genuinely destructive commands. The "*" catch-all is evaluated last
-  // inside each tool, so it wins for everything not explicitly listed.
+  // of genuinely destructive commands. The matcher takes the LAST rule that
+  // matches (findLast in config order), so specific rules must sit after the
+  // "*" catch-all for them to win.
   // ---------------------------------------------------------------------------
   "permission": {
     // Preserve OpenCode's default guard that prompts before reading .env files
@@ -120,6 +127,13 @@
         "venice-uncensored-1-2": {
           "name": "Venice Uncensored 1.2",
           "limit": { "context": 128000, "output": 8192 },
+          "tool_call": true,
+          "attachment": true
+        },
+        // Uncensored role-play and creative writing, 128K ctx, short outputs.
+        "venice-uncensored-role-play": {
+          "name": "Venice Uncensored Role Play",
+          "limit": { "context": 128000, "output": 4096 },
           "tool_call": true,
           "attachment": true
         },

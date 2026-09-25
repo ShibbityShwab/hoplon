@@ -55,9 +55,11 @@ disagree, the ROE wins. When the ROE is silent, minimize footprint and escalate.
 
 ## Tool and MCP discipline
 
-- Recon and intel servers (shodan, cve) are available by default. Weapon servers
+- The Venice MCP server is enabled by default. Recon and intel servers (shodan,
+  cve) are present but off until their API keys are set in .env. Weapon servers
   (nmap, pentest, nuclei, sqlmap, ffuf, burp, metasploit, bloodhound, ghidra) are
-  globally disabled and enabled only inside the specialist that owns them.
+  globally disabled and enabled only inside the specialist that owns them; run
+  `./hoplon doctor` to see which of their host binaries are installed.
 - Specialists: recon, web-attacker, ad-attacker, exploit-dev, reverser,
   report-writer. Route work to the agent that owns the toolset. Do not improvise a
   weapon you were not handed.

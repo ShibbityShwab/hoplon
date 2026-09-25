@@ -77,11 +77,34 @@ enable those servers.
 ## Run
 
 ```bash
-./hoplon                 # TUI in the current directory
-./hoplon run "..."       # one-shot prompt
-./hoplon <project>       # TUI on a project directory
-./hoplon --help          # opencode CLI help
+./hoplon                  # TUI in the current directory
+./hoplon run "..."        # one-shot prompt
+./hoplon <project>        # TUI on a project directory
+./hoplon doctor           # report binary, key, sandbox, MCP and weapon tooling
+HOPLON_SANDBOX=1 ./hoplon # run inside a bubblewrap sandbox
+./hoplon --help           # opencode CLI help
 ```
+
+`./hoplon doctor` is the first thing to run on a new box. It reports the opencode
+version, whether `VENICE_API_KEY` is set, whether `bwrap` is available, which MCP
+runtimes exist (`node`/`npx`, `uvx`, `docker`), which weapon binaries are
+installed (`nmap`, `nuclei`, `sqlmap`, `ffuf`, `msfconsole`, `ghidra`), and
+whether Venice is reachable.
+
+### Sandbox
+
+`HOPLON_SANDBOX=1` wraps opencode in `bubblewrap`. The host filesystem is hidden
+except this repository and the target directory, the network stays up for the
+Venice API, and the process runs in its own user, pid, ipc, and uts namespaces.
+It requires `bwrap`. Two things do not work inside: raw-socket tooling
+(`nmap -sS`, ARP sweeps, packet capture) needs `CAP_NET_RAW`, and host user
+binaries under the real `~/.local/bin` are not mounted. Run those unsandboxed
+with `HOPLON_SANDBOX=0`. Use the sandbox when handling untrusted content or
+running risky code, not for raw-socket reconnaissance.
+
+Context management is handled by the Magic Context plugin
+(`@cortexkit/opencode-magic-context@0.42.2`), which is why OMO's own
+`preemptive-compaction` hook stays disabled in `config/omo.jsonc`.
 
 ## Isolation model
 
@@ -273,6 +296,9 @@ wins.
 
 ## Hardening
 
+- **Sandbox.** `HOPLON_SANDBOX=1` hides the host filesystem behind bubblewrap
+  while keeping the network for the API. This is the real mitigation for the YOLO
+  and prompt-injection risks below; raw-socket tools must run outside it.
 - **Provider.** Venice runs through OpenCode's built-in venice provider, not a
   generic adapter. Do not add `"npm"` to `provider.venice`: the override bypasses
   the `venice_parameters` lowering and sends a camelCase object the API ignores.

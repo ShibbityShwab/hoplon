@@ -141,7 +141,7 @@
         "maxTokens": 16384
       },
       "artistry": {
-        "model": "venice/venice-uncensored-1-2",
+        "model": "venice/venice-uncensored-role-play",
         "reasoning": "off",
         "temperature": 0.9,
         "top_p": 0.95,
