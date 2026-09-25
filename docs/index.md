@@ -45,5 +45,5 @@ cp .env.example .env     # then set VENICE_API_KEY
 ## License
 
 Hoplon is released under the
-[GNU Affero General Public License v3.0 or later](https://www.gnu.org/licenses/agpl-3.0.html)
+[GNU Affero General Public License v3.0 or later](https://github.com/ShibbityShwab/hoplon/blob/main/LICENSE)
 (AGPL-3.0-or-later).
