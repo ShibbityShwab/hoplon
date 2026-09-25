@@ -252,7 +252,7 @@ environment variable overrides each pin.
 
 - Component: Kubernetes command-line client (`kubectl`)
 - Upstream: https://github.com/kubernetes/kubernetes
-- Release source: https://dl.k8s.io/release/
+- Release source: https://dl.k8s.io/release/stable.txt
 - Version (pinned): `1.31.0` (`HOPLON_KUBECTL_VERSION`)
 - License: Apache-2.0
 - License file: https://github.com/kubernetes/kubernetes/blob/master/LICENSE
