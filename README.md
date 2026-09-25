@@ -106,6 +106,7 @@ environment:
 - [Isolation](docs/isolation.md)
 - [QEMU guest](docs/vm.md)
 - [NixOS guest](docs/nixos-vm.md)
+- [Tooling](docs/tooling.md)
 - [Models](docs/models.md)
 - [MCP servers](docs/mcp-servers.md)
 - [Magic Context](docs/magic-context.md)

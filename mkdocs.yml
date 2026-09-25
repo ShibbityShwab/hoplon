@@ -55,6 +55,7 @@ nav:
   - Isolation: isolation.md
   - QEMU guest: vm.md
   - NixOS guest: nixos-vm.md
+  - Tooling: tooling.md
   - Magic Context: magic-context.md
   - Rules of Engagement: rules-of-engagement.md
   - OMO: omo.md

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Expanded offensive toolkit.** Both guests ship a broad red-team and
+  software-exploitation toolset across recon, web, credentials, Active
+  Directory, exploit development, fuzzing, reversing, forensics, network
+  interception, cloud, and post-exploitation, plus cross-compile toolchains.
+  See `docs/tooling.md` and `nix/toolchain.nix`.
 - **Isolation tiers.** `HOPLON_ISOLATION=host|vm|nix` selects where the stack
   runs: the isolated home on this machine, a Debian QEMU/KVM guest, or a
   declarative NixOS guest. The launcher hands off to the matching backend.
