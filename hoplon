@@ -75,24 +75,9 @@ export HOPLON_HOST_HOME
 # quotes are stripped; the value is exported verbatim. Command substitution,
 # backticks, and arithmetic never run.
 # ---------------------------------------------------------------------------
-_hoplon_load_env() {
-  [ -f "$1" ] && [ -r "$1" ] || return 0
-  set -a
-  while IFS= read -r _hl_line || [ -n "$_hl_line" ]; do
-    _hl_line="${_hl_line%$'\r'}"
-    [[ "$_hl_line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || continue
-    _hl_name="${_hl_line%%=*}"
-    _hl_value="${_hl_line#*=}"
-    case "$_hl_value" in
-      \'*\') _hl_value="${_hl_value#\'}" && _hl_value="${_hl_value%\'}" ;;
-      \"*\") _hl_value="${_hl_value#\"}" && _hl_value="${_hl_value%\"}" ;;
-    esac
-    export "$_hl_name=$_hl_value"
-  done < "$1"
-  set +a
-  unset _hl_line _hl_name _hl_value 2> /dev/null || true
-}
-_hoplon_load_env "$HOPLON_HOME/.env"
+# .env is loaded further down, AFTER host credentials are scrubbed, so a .env
+# key can never be confused with a host one and host secrets can never survive
+# through .env. The loader itself lives in scripts/env.sh.
 
 # ---------------------------------------------------------------------------
 # `hoplon update`: hand off to the updater with the host environment intact.
@@ -135,13 +120,28 @@ unset SSH_AUTH_SOCK SSH_AGENT_PID SSH_ASKPASS GIT_ASKPASS GPG_AGENT_INFO \
   DOCKER_HOST DOCKER_TLS_VERIFY DOCKER_CERT_PATH DOCKER_CONTEXT \
   XDG_RUNTIME_DIR TMPDIR 2> /dev/null || true
 
-# Azure and Google/GCP credentials use dynamic names, so sweep the exported set.
+# Sweep credential-shaped names, including dynamic ones, plus the explicit list
+# above. This runs BEFORE .env is loaded, so only the keys the operator placed in
+# .env (VENICE_API_KEY, the MCP keys, HOPLON_* settings) end up in the child.
 while IFS= read -r _hoplon_var; do
   case "$_hoplon_var" in
-    AZURE_* | GOOGLE_* | GCP_*) unset "$_hoplon_var" ;;
+    HOPLON_* | VENICE_*) : ;;
+    AZURE_* | GOOGLE_* | GCP_* | AWS_* | \
+      *_TOKEN | *_API_KEY | *_SECRET | *_SECRET_KEY | *_ACCESS_KEY | \
+      *_PASSWORD | *_CREDENTIALS | *_PRIVATE_KEY)
+      unset "$_hoplon_var"
+      ;;
   esac
 done < <(compgen -e)
 unset _hoplon_var 2> /dev/null || true
+
+# Load .env as data, on top of the now-clean environment. If the shared loader
+# is missing (a stripped-down copy), skip .env entirely rather than source it.
+if [ -f "$HOPLON_HOME/scripts/env.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$HOPLON_HOME/scripts/env.sh"
+  hoplon_load_env "$HOPLON_HOME/.env"
+fi
 
 export XDG_RUNTIME_DIR="$HOME/.run"
 export TMPDIR="$HOME/tmp"
@@ -252,9 +252,13 @@ fi
 # deliberate. Turn these on per need.
 # ---------------------------------------------------------------------------
 mkdir -p "$HOME/.config"
+# Rebuild these links every launch from the CURRENT flag, so turning the opt-in
+# off removes the link. Only a symlink is removed; a real file or dir is left.
+if [ -L "$HOME/.ssh" ]; then rm -f "$HOME/.ssh"; fi
 if [ "${HOPLON_SHARE_SSH:-0}" = "1" ] && [ -d "$HOPLON_HOST_HOME/.ssh" ] && [ ! -e "$HOME/.ssh" ]; then
   ln -s "$HOPLON_HOST_HOME/.ssh" "$HOME/.ssh"
 fi
+if [ -L "$HOME/.config/gh" ]; then rm -f "$HOME/.config/gh"; fi
 if [ "${HOPLON_SHARE_GH:-0}" = "1" ] && [ -d "$HOPLON_HOST_HOME/.config/gh" ] && [ ! -e "$HOME/.config/gh" ]; then
   ln -s "$HOPLON_HOST_HOME/.config/gh" "$HOME/.config/gh"
 fi
@@ -395,6 +399,11 @@ if [ "$HOPLON_ENABLE_OMO" != "0" ] && [ "${HOPLON_OMO_TAKEOVER:-1}" != "0" ]; th
       printf 'hoplon: notice: host OMO config at %s is a symlink; skipping the takeover so the link is not clobbered.\n' "$_conflict" >&2
     else
       _bak="${_conflict}.hoplon-hostbak"
+      # A directory or other non-regular file at the backup path would swallow
+      # the cp below and make the restore skip, silently losing the host config.
+      if [ -e "$_bak" ] && [ ! -f "$_bak" ]; then
+        mv -f "$_bak" "${_bak}.pre-hoplon.$$" 2> /dev/null || true
+      fi
       # Self-heal: if a previous run died before restoring, put the host file back.
       if [ -f "$_bak" ] && grep -q "$_hoplon_marker" "$_conflict" 2> /dev/null; then
         cp -f "$_bak" "$_conflict" 2> /dev/null || true
@@ -402,19 +411,24 @@ if [ "$HOPLON_ENABLE_OMO" != "0" ] && [ "${HOPLON_OMO_TAKEOVER:-1}" != "0" ]; th
       HOPLON_OMO_MODE="$(_hoplon_file_mode "$_conflict")"
       # A real host file (no Hoplon marker) is authoritative. Always refresh the
       # backup from its current content so host edits made since an earlier run
-      # survive the restore. If the conflict still holds Hoplon's marker, the
-      # self-heal above could not restore it, so leave the existing backup alone.
+      # survive the restore.
       if ! grep -q "$_hoplon_marker" "$_conflict" 2> /dev/null; then
-        cp -f "$_conflict" "$_bak" 2> /dev/null || true
-        chmod 600 "$_bak" 2> /dev/null || true
+        if ! cp -f "$_conflict" "$_bak" 2> /dev/null; then
+          printf 'hoplon: warning: could not back up %s; skipping the takeover to avoid data loss.\n' "$_conflict" >&2
+          _bak=""
+        else
+          chmod 600 "$_bak" 2> /dev/null || true
+        fi
       fi
       # Write atomically so a killed run never leaves a half-written config.
-      if cp -f "$HOPLON_HOME/config/omo.jsonc" "$_conflict.hoplon-new.$$" 2> /dev/null &&
+      if [ -n "$_bak" ] &&
+        cp -f "$HOPLON_HOME/config/omo.jsonc" "$_conflict.hoplon-new.$$" 2> /dev/null &&
         mv -f "$_conflict.hoplon-new.$$" "$_conflict" 2> /dev/null; then
         HOPLON_OMO_RESTORE="$_conflict"
         HOPLON_OMO_BAK="$_bak"
         printf 'hoplon: host OMO config at %s would override Venice routing; taking it over for this session (restored on exit).\n' "$_conflict" >&2
       else
+        rm -f "$_conflict.hoplon-new.$$" 2> /dev/null || true
         printf 'hoplon: warning: a host OMO config at %s may override Hoplon routing (could not take it over).\n' "$_conflict" >&2
       fi
     fi

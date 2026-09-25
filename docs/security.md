@@ -23,11 +23,13 @@ Hoplon runs YOLO. Read prompts for `.env`, but bash is allowed, so the agent can
 still reach the key with `cat .env`. Treat the key as exposed to the model.
 
 The bash rules cover `rm`, `dd`, disk tools, recursive chown/chmod, `sudo`,
-fork bombs, and forced pushes. They are a text denylist, not a containment
-boundary: `bash -c 'rm -rf /'` and other wrappers bypass the match, and unusual
-flag orders slip through. Treat YOLO mode as host-level authority. The real
-boundary is the guest tier (`HOPLON_ISOLATION=vm`), with the QEMU virtual
-machine as the cross-platform default.
+fork bombs, and forced pushes, and they deny the common wrapper and interpreter
+routes (`bash -c`, `sh -c`, `python -c`, `perl -e`, `/bin/rm`, `command rm`,
+and pipes into a shell). They are still a text denylist, not a containment
+boundary: unusual wrappers, encodings, and flag orders can slip through. Treat
+YOLO mode as host-level authority. The real boundary is the guest tier
+(`HOPLON_ISOLATION=vm`), with the QEMU virtual machine as the cross-platform
+default.
 
 ## The VM is the containment boundary
 

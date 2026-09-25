@@ -23,9 +23,13 @@
 # missing one makes the script exit non-zero.
 #
 # Environment:
+#   HOPLON_TOOL_SUDO=0     never re-execute with sudo; fail if not root
 #   HOPLON_GO_VERSION      Go toolchain to fetch when apt Go is too old
 #                          (default 1.24.0)
 #   HOPLON_MIN_GO_MINOR    minimum acceptable Go 1.x minor (default 21)
+#   HOPLON_GO_ROOT         install prefix for the downloaded Go toolchain
+#                          (default /usr/local; tests use a temp root)
+#   HOPLON_GO_BIN_DIR      where to link go and gofmt (default /usr/local/bin)
 #   HOPLON_GHIDRA_VERSION  NSA Ghidra release to fetch (default 12.1.4)
 #   HOPLON_SLIVER_VERSION  BishopFox Sliver release to fetch (default 1.7.7)
 #   HOPLON_FEROXBUSTER_VERSION  feroxbuster release to fetch (default 2.13.1)
@@ -39,6 +43,22 @@
 # tool can be redirected by setting its HOPLON_*_VERSION before running.
 # =============================================================================
 set -euo pipefail
+
+# Associative arrays (declare -A) below need bash 4 or newer. macOS ships bash
+# 3.2 as /bin/bash, so fail with a clear message instead of the cryptic
+# "declare: -A: invalid option" that bash 3.2 emits on the next lines.
+if [ -z "${BASH_VERSION:-}" ]; then
+  printf 'toolchain: bash 4 or newer is required (not running under bash)\n' >&2
+  exit 1
+fi
+case "${BASH_VERSION%%.*}" in
+  '' | *[!0-9]*) bash_major=0 ;;
+  *) bash_major="${BASH_VERSION%%.*}" ;;
+esac
+if [ "$bash_major" -lt 4 ]; then
+  printf 'toolchain: bash 4 or newer is required, found %s\n' "$BASH_VERSION" >&2
+  exit 1
+fi
 
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" > /dev/null 2>&1 && pwd -P)/$(basename "${BASH_SOURCE[0]}")"
 ORIG_ARGS=("$@")
@@ -423,8 +443,23 @@ go_version_ok() { # raw "go version go1.24.0 linux/amd64"
   [ "$minor" -ge "${HOPLON_MIN_GO_MINOR:-21}" ]
 }
 
+# Download a URL to a file with curl or wget, whichever is present. Returns
+# non-zero when neither exists or the transfer fails.
+fetch_url() { # url dest
+  if command -v curl > /dev/null 2>&1; then
+    run_logged curl -fsSL "$1" -o "$2"
+    return $?
+  fi
+  if command -v wget > /dev/null 2>&1; then
+    run_logged wget -q "$1" -O "$2"
+    return $?
+  fi
+  return 1
+}
+
 install_go_tarball() {
   local ver="${HOPLON_GO_VERSION:-1.24.0}" arch tarball url tmp
+  local go_root go_dir go_bin_dir extract_dir expected actual
   case "$(uname -m)" in
     x86_64 | amd64) arch=amd64 ;;
     aarch64 | arm64) arch=arm64 ;;
@@ -432,6 +467,9 @@ install_go_tarball() {
     i386 | i686) arch=386 ;;
     *) return 1 ;;
   esac
+  go_root="${HOPLON_GO_ROOT:-/usr/local}"
+  go_dir="$go_root/go"
+  go_bin_dir="${HOPLON_GO_BIN_DIR:-/usr/local/bin}"
   tarball="go${ver}.linux-${arch}.tar.gz"
   url="https://go.dev/dl/${tarball}"
   tmp="$(mktemp -d)"
@@ -440,30 +478,78 @@ install_go_tarball() {
     apt_update_once || true
     run_logged apt-get install -y --no-install-recommends curl ca-certificates || true
   fi
-  if command -v curl > /dev/null 2>&1; then
-    run_logged curl -fsSL "$url" -o "$tmp/$tarball" || {
-      rm -rf "$tmp"
-      return 1
-    }
-  elif command -v wget > /dev/null 2>&1; then
-    run_logged wget -q "$url" -O "$tmp/$tarball" || {
-      rm -rf "$tmp"
-      return 1
-    }
-  else
+  if ! fetch_url "$url" "$tmp/$tarball"; then
+    warn "could not download $url"
     rm -rf "$tmp"
     return 1
   fi
 
-  rm -rf /usr/local/go
-  if ! run_logged tar -C /usr/local -xzf "$tmp/$tarball"; then
+  # Verify the tarball against go.dev's published sha256 before trusting it.
+  if ! command -v sha256sum > /dev/null 2>&1 && ! command -v shasum > /dev/null 2>&1; then
+    warn "no sha256 tool (need sha256sum or shasum); refusing to install Go"
     rm -rf "$tmp"
     return 1
   fi
-  ln -sf /usr/local/go/bin/go /usr/local/bin/go
-  ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
+  if ! fetch_url "$url.sha256" "$tmp/$tarball.sha256"; then
+    warn "could not fetch checksum for $tarball; refusing to install Go"
+    rm -rf "$tmp"
+    return 1
+  fi
+  expected="$(grep -oE '[0-9a-fA-F]{64}' "$tmp/$tarball.sha256" 2> /dev/null | head -n 1 || true)"
+  if [ -z "$expected" ]; then
+    warn "checksum file for $tarball is malformed"
+    rm -rf "$tmp"
+    return 1
+  fi
+  if command -v sha256sum > /dev/null 2>&1; then
+    actual="$(sha256sum "$tmp/$tarball" 2> /dev/null | awk '{print $1}')"
+  else
+    actual="$(shasum -a 256 "$tmp/$tarball" 2> /dev/null | awk '{print $1}')"
+  fi
+  if [ "${actual,,}" != "${expected,,}" ]; then
+    warn "checksum mismatch for $tarball (expected $expected, got $actual)"
+    rm -rf "$tmp"
+    return 1
+  fi
+
+  # Extract into the temp dir first, so a truncated archive never leaves a
+  # half-written Go tree in the install prefix.
+  extract_dir="$tmp/extract"
+  mkdir -p "$extract_dir"
+  if ! run_logged tar -C "$extract_dir" -xzf "$tmp/$tarball"; then
+    warn "could not extract $tarball"
+    rm -rf "$tmp"
+    return 1
+  fi
+  if [ ! -x "$extract_dir/go/bin/go" ]; then
+    warn "$tarball did not contain go/bin/go"
+    rm -rf "$tmp"
+    return 1
+  fi
+
+  # Only now move the verified tree into place, keeping the old one until the
+  # move succeeds.
+  mkdir -p "$go_root" "$go_bin_dir"
+  if [ -e "$go_dir" ]; then
+    rm -rf "$tmp/go.old"
+    if ! mv "$go_dir" "$tmp/go.old"; then
+      warn "could not move the existing $go_dir aside"
+      rm -rf "$tmp"
+      return 1
+    fi
+  fi
+  if ! mv "$extract_dir/go" "$go_dir"; then
+    warn "could not move the new Go tree into $go_dir"
+    if [ -e "$tmp/go.old" ]; then
+      mv "$tmp/go.old" "$go_dir"
+    fi
+    rm -rf "$tmp"
+    return 1
+  fi
   rm -rf "$tmp"
-  export PATH="/usr/local/bin:${PATH}"
+  ln -sf "$go_dir/bin/go" "$go_bin_dir/go"
+  ln -sf "$go_dir/bin/gofmt" "$go_bin_dir/gofmt"
+  export PATH="$go_bin_dir:${PATH}"
   return 0
 }
 
@@ -1421,6 +1507,10 @@ fi
 
 # --- privilege and platform guards ------------------------------------------
 if [ "$(id -u)" -ne 0 ]; then
+  if [ "${HOPLON_TOOL_SUDO:-1}" = "0" ]; then
+    warn "not root and HOPLON_TOOL_SUDO=0; refusing to self-elevate"
+    exit 1
+  fi
   if command -v sudo > /dev/null 2>&1; then
     printf 'toolchain: not root; re-executing with sudo\n'
     exec sudo -E bash "$SCRIPT_PATH" "${ORIG_ARGS[@]}"

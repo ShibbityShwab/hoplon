@@ -12,10 +12,13 @@ export HOPLON_TEST_REPO
 # the real opencode binary or the network. $1 is the destination root.
 hoplon_make_repo() {
   _dst="$1"
-  mkdir -p "$_dst/config" "$_dst/bin"
+  mkdir -p "$_dst/config" "$_dst/bin" "$_dst/scripts"
   cp "$HOPLON_TEST_REPO/hoplon" "$_dst/hoplon"
   cp "$HOPLON_TEST_REPO/config/opencode.jsonc" "$_dst/config/opencode.jsonc"
   cp "$HOPLON_TEST_REPO/config/omo.jsonc" "$_dst/config/omo.jsonc"
+  if [ -f "$HOPLON_TEST_REPO/scripts/env.sh" ]; then
+    cp "$HOPLON_TEST_REPO/scripts/env.sh" "$_dst/scripts/env.sh"
+  fi
   if [ -f "$HOPLON_TEST_REPO/config/tui.json" ]; then
     cp "$HOPLON_TEST_REPO/config/tui.json" "$_dst/config/tui.json"
   fi

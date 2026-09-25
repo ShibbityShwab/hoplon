@@ -24,7 +24,13 @@ software emulation is slow.
 
 ## Create and run
 
+Run `scripts/vm.sh` with no arguments to boot and connect: it creates the guest
+if it does not exist, starts it if it is stopped, waits for SSH on
+127.0.0.1:2222, and opens a shell. `HOPLON_ISOLATION=vm ./hoplon` does the same
+through the launcher.
+
 ```bash
+scripts/vm.sh            # create if needed, boot, then open a shell
 scripts/vm.sh create     # download the Debian cloud image, build the seed
 scripts/vm.sh start      # boot it headless
 scripts/vm.sh ssh        # open the guest (waits for SSH on 127.0.0.1:2222)
@@ -33,7 +39,8 @@ scripts/vm.sh stop       # shut it down
 scripts/vm.sh destroy    # remove the VM state
 ```
 
-`hoplon` with `HOPLON_ISOLATION=vm` delegates to `scripts/vm.sh`.
+Every command also runs through the launcher as
+`HOPLON_ISOLATION=vm ./hoplon <subcommand>`.
 
 ## What the guest gets
 
@@ -44,6 +51,12 @@ installs a minimal package set (`ca-certificates`, `curl`, `git`, `jq`,
 `/usr/local/bin`, and writes the on-demand shell hook to
 `/etc/profile.d/hoplon-autotool.sh`. No red-team tool is fetched until it is
 needed.
+
+The guest clones `HOPLON_REPO_URL` (default the Hoplon GitHub repo) into
+`/opt/hoplon` and installs it for the `hoplon` user, so it runs the remote
+revision, not the host working tree. Local uncommitted changes do not reach the
+guest. Point `HOPLON_REPO_URL` at a fork or another reachable clone to change
+what the guest installs.
 
 Set `HOPLON_VM_TOOLS=core` or `full` to preload instead: cloud-init runs
 `scripts/toolchain.sh --core` or `--full` before installing Hoplon. `core` is
@@ -79,10 +92,14 @@ install command and never install automatically. See [Tooling](tooling.md).
 | `HOPLON_VM_CPUS` | `4` | guest vCPUs |
 | `HOPLON_VM_ACCEL` | auto by host | QEMU accelerator: kvm, hvf, whpx, or tcg |
 | `HOPLON_VM_DISK` | `20G` | guest disk size |
-| `HOPLON_VM_SSH_KEY` | host `~/.ssh/id_ed25519.pub` | key authorized in the guest |
+| `HOPLON_VM_SSH_KEY` | host `~/.ssh/id_ed25519.pub`, else a generated `vm/id_ed25519` | key authorized in the guest |
 | `HOPLON_VM_SSH_PORT` | `2222` | host port forwarded to guest port 22 |
-| `HOPLON_VM_SHARE` | none | directory shared in over virtio-9p |
+| `HOPLON_VM_SSH_TIMEOUT` | `300` | seconds `scripts/vm.sh ssh` waits for sshd |
+| `HOPLON_VM_SHARE` | none | directory exposed read-only over virtio-9p; a path inside `HOPLON_HOME` is refused unless `HOPLON_VM_SHARE_ALLOW=1` |
+| `HOPLON_VM_SHARE_TAG` | `engagements` | 9p mount tag inside the guest |
+| `HOPLON_VM_SHARE_ALLOW` | unset | set `1` to allow sharing a directory inside `HOPLON_HOME` |
 | `HOPLON_VM_IMAGE_URL` | Debian bookworm latest for the host arch | base cloud image to download |
+| `HOPLON_REPO_URL` | the Hoplon GitHub repo | repository cloud-init clones and installs in the guest |
 
 ## Tradeoff
 

@@ -75,18 +75,23 @@ scope first. See [Rules of engagement](rules-of-engagement.md).
 
 ## 7. Handle untrusted content in a guest
 
-When you are about to run risky code or process untrusted content, step up to the
-QEMU guest. The whole stack moves inside a Debian virtual machine with its own
-kernel, filesystem, and user:
+When you are about to run risky code or process untrusted content, move the
+stack into the QEMU guest. The guest has its own kernel, filesystem, and user:
 
 ```bash
 HOPLON_ISOLATION=vm ./hoplon
 ```
 
+With no subcommand the launcher delegates to `scripts/vm.sh`, which creates the
+guest if it does not exist, boots it, waits for SSH, and opens a shell. Run
+`hoplon` there to start the console. `scripts/vm.sh` with no arguments does the
+same directly, and the explicit `create`, `start`, and `ssh` subcommands still
+work.
+
 The host filesystem is not visible to the guest, so the agent cannot reach the
-launcher, `scripts/`, `config/`, `.env`, or any host credential. The network
-stays up for the Venice API. The guest starts minimal and fetches a tool only
-when it is needed: run `hoplon-tool install NAME` in the guest, or let the
+host launcher, `scripts/`, `config/`, `.env`, or any host credential. The
+network stays up for the Venice API. The guest starts minimal and fetches a tool
+only when it is needed: run `hoplon-tool install NAME` in the guest, or let the
 missing-command hook do it. See [QEMU guest](vm.md) and [Tooling](tooling.md).
 
 ## Next steps

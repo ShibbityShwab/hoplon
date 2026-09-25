@@ -3,9 +3,11 @@
 # hoplon-tool resolves tools and delegates installs.
 #
 # The CLI must read the known set, answer known/suggest from it, map command
-# aliases (nxc to netexec), and hand the canonical names to toolchain.sh as
+# aliases (nxc to netexec), resolve invoked names to the command that actually
+# runs after install, and hand the canonical names to toolchain.sh as
 # --tools=NAME,... without ever running apt itself. toolchain.sh is stubbed so
-# the test stays offline.
+# the test stays offline, except for one run of the real toolchain.sh that
+# checks HOPLON_TOOL_SUDO=0 refuses to self-elevate.
 # =============================================================================
 set -euo pipefail
 
@@ -63,7 +65,21 @@ fi
 [ "$(bash "$ht" suggest nxc)" = "netexec" ] || fail "suggest nxc should print netexec"
 [ "$(bash "$ht" suggest nc)" = "netcat-openbsd" ] || fail "suggest nc should print netcat-openbsd"
 [ "$(bash "$ht" suggest sqlmap)" = "sqlmap" ] || fail "suggest sqlmap should print sqlmap"
+[ "$(bash "$ht" suggest ncat)" = "nmap" ] || fail "suggest ncat should print nmap"
 [ -z "$(bash "$ht" suggest definitely-not-a-tool)" ] || fail "suggest of an unknown name should print nothing"
+
+# resolve: the invoked name maps to the command that exists after install. A
+# plain tool is itself, a tool whose binary differs uses the published name.
+[ "$(bash "$ht" resolve nmap)" = "nmap" ] || fail "resolve nmap should print nmap"
+[ "$(bash "$ht" resolve sqlmap)" = "sqlmap" ] || fail "resolve sqlmap should print sqlmap"
+[ "$(bash "$ht" resolve netexec)" = "nxc" ] || fail "resolve netexec should print nxc"
+[ "$(bash "$ht" resolve nxc)" = "nxc" ] || fail "resolve nxc should print nxc"
+[ "$(bash "$ht" resolve radare2)" = "rizin" ] || fail "resolve radare2 should print rizin"
+[ "$(bash "$ht" resolve theharvester)" = "theHarvester" ] ||
+  fail "resolve theharvester should print theHarvester"
+[ "$(bash "$ht" resolve ncat)" = "ncat" ] || fail "resolve ncat should print ncat"
+[ "$(bash "$ht" resolve definitely-not-a-tool)" = "definitely-not-a-tool" ] ||
+  fail "resolve of an unknown name should echo the name"
 
 # install delegates exactly the canonical names as --tools=NAME,...
 : > "$rec"
@@ -105,5 +121,27 @@ printf '%s\n' "$status_out" | grep -qE '^(present|missing) +sqlmap$' ||
   fail "status did not report sqlmap: $status_out"
 printf '%s\n' "$status_out" | grep -q 'of 4 known tools present' ||
   fail "status did not summarize the catalog: $status_out"
+
+# HOPLON_TOOL_SUDO=0 must stop the real toolchain.sh from re-elevating with
+# sudo. Only meaningful as a non-root user, which is how CI runs.
+if [ "$(id -u)" -ne 0 ]; then
+  mkdir -p "$_tmp/sudobin"
+  cat > "$_tmp/sudobin/sudo" << 'SUDO'
+#!/usr/bin/env bash
+printf 'sudo %s\n' "$*" >> "${HOPLON_TEST_SUDO_LOG:?}"
+exit 0
+SUDO
+  chmod +x "$_tmp/sudobin/sudo"
+  : > "$_tmp/sudo.log"
+  set +e
+  env PATH="$_tmp/sudobin:$PATH" HOPLON_TOOL_SUDO=0 HOPLON_TEST_SUDO_LOG="$_tmp/sudo.log" \
+    bash "$HOPLON_TEST_REPO/scripts/toolchain.sh" --tools=nmap > "$_tmp/toolchain.log" 2>&1
+  rc=$?
+  set -e
+  [ "$rc" -ne 0 ] || fail "toolchain.sh should refuse to run unprivileged with HOPLON_TOOL_SUDO=0"
+  assert_file_lacks "$_tmp/sudo.log" 'sudo' "HOPLON_TOOL_SUDO=0 still invoked sudo"
+  assert_file_contains "$_tmp/toolchain.log" 'refusing to self-elevate' \
+    "toolchain.sh did not explain the refusal"
+fi
 
 printf 'hoplon-tool resolution and delegation ok\n'

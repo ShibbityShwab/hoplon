@@ -15,7 +15,7 @@ This page describes how the pieces fit.
 | OpenCode | the agent runtime | `bin/opencode` (fetched) |
 | Oh My OpenAgent | agent and category routing, background tasks, team mode | npm plugin |
 | Magic Context | long-session context management and compaction | npm plugin |
-| Venice provider | inference, OpenAI-compatible | OpenCode built-in |
+| Venice provider | inference through the built-in venice provider | OpenCode built-in |
 | Venice MCP server | 31 tools over the Venice API | `npx` |
 | Red-team agents | six specialist subagents | `agents/` |
 | Skills | 5 red-team + 20 Venice API skills | `skills/` |

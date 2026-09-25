@@ -37,18 +37,18 @@ HOPLON_AUTO_INSTALL=0 nxc --version
 
 | Category | Examples |
 | --- | --- |
-| Recon and OSINT | nmap, masscan, dnsx, naabu, subfinder, amass, httpx, katana, theHarvester |
-| Web | nuclei, ffuf, gobuster, feroxbuster, dirsearch, dalfox, arjun, commix, wpscan, nikto, whatweb, sqlmap, ZAP, mitmproxy |
-| Credentials | hashcat, hashcat-utils, john, hydra, medusa, patator, crunch, cewl, seclists, wordlists |
-| Active Directory and Windows | impacket, netexec, bloodhound, kerbrute, certipy, mitm6, responder, ldapdomaindump, smbmap, enum4linux-ng, evil-winrm, pypykatz, coercer, samba, openldap |
-| Exploit development and pwn | pwntools, gef, ROPgadget, ropper, checksec, one_gadget, capstone, keystone, unicorn, angr, gdb, valgrind, qemu-user |
-| Fuzzing | AFL++, honggfuzz, radamsa, boofuzz, clang, llvm |
-| Reversing and forensics | Ghidra, radare2, rizin, Cutter, binwalk, exiftool, yara, sleuthkit, foremost, testdisk, steghide, volatility3, upx, jadx, apktool, frida-tools |
-| Network interception | tshark, bettercap, ettercap, scapy, hping, arp-scan |
-| Cloud and containers | awscli, azure-cli, google-cloud-sdk, kubectl, trivy, kube-hunter, pacu |
-| Post-exploitation and C2 | metasploit, chisel, ligolo-ng |
-| Compilers and build | gcc, clang, llvm, cmake, mingw-w64 cross, ruby, nodejs, rustc, cargo, go, python3 |
-| Shell and data | git, jq, ripgrep, tmux, file |
+| Recon and OSINT | nmap, masscan, dnsx, naabu, subfinder, amass, httpx, katana, theharvester, dnsrecon |
+| Web | nuclei, ffuf, gobuster, feroxbuster, dirsearch, dalfox, arjun, commix, wpscan, nikto, whatweb, sqlmap, zaproxy, gospider |
+| Credentials | hashcat, hashcat-utils, john, hydra, medusa, patator, crunch, cewl, ncrack, seclists, rockyou |
+| Active Directory and Windows | impacket, netexec, bloodhound, kerbrute, certipy-ad, mitm6, responder, ldapdomaindump, smbmap, enum4linux-ng, evil-winrm, pypykatz, coercer |
+| Exploit development and pwn | pwntools, pwndbg, gef, ROPgadget, ropper, checksec, one_gadget, capstone, keystone-engine, unicorn, angr, gdb, valgrind, qemu-user, nasm |
+| Fuzzing | afl++, honggfuzz, radamsa, boofuzz, clang, llvm |
+| Reversing and forensics | ghidra, rizin, binwalk, exiftool, yara, sleuthkit, foremost, testdisk, steghide, volatility3, upx, jadx, apktool, frida-tools |
+| Network interception | tshark, bettercap, ettercap, scapy, hping3, arp-scan |
+| Cloud and containers | awscli, azure-cli, kubectl, trivy, docker, kube-hunter |
+| Post-exploitation and C2 | sliver, chisel, ligolo-ng, peass |
+| Compilers and build | golang, rust, mingw-w64, clang, llvm, nasm, build-essential |
+| Shell and data | git, jq, ripgrep, tmux, file, curl, wget, openssl, socat, tcpdump |
 
 ## Adding a tool
 

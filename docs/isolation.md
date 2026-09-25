@@ -87,8 +87,10 @@ On every launch the launcher copies config into the isolated home:
 | `agents/*.md` | `$XDG_CONFIG_HOME/opencode/agents/` |
 | `tui/*.tsx` | `$XDG_CONFIG_HOME/opencode/plugins/` |
 
-When `HOPLON_ENABLE_OMO=0`, the launcher skips the `config/omo.jsonc` seed and
-strips the OMO plugin line from the seeded OpenCode config.
+When `HOPLON_ENABLE_OMO=0`, the launcher skips the `config/omo.jsonc` seed,
+strips the OMO plugin line from the seeded OpenCode config, and repoints
+`default_agent` from `sisyphus` to `build`, because `sisyphus` is registered by
+OMO only.
 
 It copies rather than symlinks, because OMO rewrites its config with a
 temp-file plus rename replace, which would sever a symlink inode. Copies go
@@ -169,6 +171,7 @@ the cross-platform choice: QEMU runs on Linux (KVM), macOS (HVF), and Windows
 - Anything you explicitly pass through with `HOPLON_SHARE_SSH` or
   `HOPLON_SHARE_GH`.
 
-For a real boundary, use the QEMU guest: `HOPLON_ISOLATION=vm` runs the whole
-stack inside a virtual machine with its own kernel, on any supported host. See
-[QEMU guest](vm.md).
+For a real boundary, use the QEMU guest: `HOPLON_ISOLATION=vm ./hoplon` (or
+`scripts/vm.sh` with no arguments) creates the guest if needed, boots it, and
+connects, so the whole stack runs in a virtual machine with its own kernel on any
+supported host. See [QEMU guest](vm.md).

@@ -45,7 +45,9 @@ systems compacting at once.
 
 ## Running without OMO
 
-Set `HOPLON_ENABLE_OMO=0` to skip the OMO plugin and its config seeding.
+Set `HOPLON_ENABLE_OMO=0` to skip the OMO plugin and its config seeding. The
+launcher also repoints `default_agent` from `sisyphus` to `build`, because
+`sisyphus` is registered by OMO only.
 
 ```bash
 HOPLON_ENABLE_OMO=0 ./hoplon

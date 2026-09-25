@@ -55,13 +55,12 @@ umask 077
 HOPLON_HOME="${HOPLON_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." > /dev/null 2>&1 && pwd -P)}"
 export HOPLON_HOME
 
-# Optional local settings. Matches scripts/install.sh: values in .env win over
-# the ambient environment.
-if [ -f "$HOPLON_HOME/.env" ]; then
-  set -a
+# Optional local settings. Matches scripts/install.sh and the launcher: .env is
+# read as DATA through the shared loader, never sourced.
+if [ -f "$HOPLON_HOME/scripts/env.sh" ]; then
   # shellcheck source=/dev/null
-  . "$HOPLON_HOME/.env"
-  set +a
+  . "$HOPLON_HOME/scripts/env.sh"
+  hoplon_load_env "$HOPLON_HOME/.env"
 fi
 
 VM_DIR="$HOPLON_HOME/vm"
@@ -230,6 +229,27 @@ validate_env() {
       die "HOPLON_VM_SHARE_TAG must be non-empty and match [A-Za-z0-9._-]+ (got: '$VM_SHARE_TAG')"
       ;;
   esac
+
+  # A comma is the QEMU option separator, so a comma inside HOPLON_VM_SHARE
+  # would inject extra -virtfs options (for example a second path=/ that shares
+  # the host root). Reject it rather than try to escape it.
+  case "$VM_SHARE" in
+    *,*) die "HOPLON_VM_SHARE must not contain a comma (got: '$VM_SHARE')" ;;
+  esac
+
+  # HOPLON_VM_IMAGE_URL feeds a curl fetch and a basename, so keep it a plain
+  # http(s), file, or absolute-path URL.
+  if [ -n "${HOPLON_VM_IMAGE_URL:-}" ]; then
+    case "$HOPLON_VM_IMAGE_URL" in
+      *[[:space:]]* | *\"* | *\'* | *\`*)
+        die "HOPLON_VM_IMAGE_URL must not contain whitespace or quotes"
+        ;;
+      http://* | https://* | file://* | /*) : ;;
+      *)
+        die "HOPLON_VM_IMAGE_URL must be an http(s), file, or absolute-path URL (got: '$HOPLON_VM_IMAGE_URL')"
+        ;;
+    esac
+  fi
 }
 
 # Return success when canonical path $1 is $2 itself or lies beneath it.
@@ -340,14 +360,27 @@ resolve_ssh_key() {
 verify_image() {
   local file="$1"
   local base sums_text line want got
+  local -a sha_tool=()
   base="$(basename "$IMAGE_URL")"
-  if ! command -v sha512sum > /dev/null 2>&1; then
-    warn "sha512sum unavailable; skipping image verification"
+  if command -v sha512sum > /dev/null 2>&1; then
+    sha_tool=(sha512sum)
+  elif command -v shasum > /dev/null 2>&1; then
+    sha_tool=(shasum -a 512)
+  else
+    if [ "${HOPLON_VM_VERIFY:-warn}" = "strict" ]; then
+      warn "no sha512 tool (need sha512sum or shasum) and HOPLON_VM_VERIFY=strict"
+      return 1
+    fi
+    warn "no sha512 tool (need sha512sum or shasum); skipping image verification"
     return 0
   fi
 
   sums_text="$(curl -fsSL --retry 2 "${IMAGE_URL%/*}/SHA512SUMS" 2> /dev/null || true)"
   if [ -z "$sums_text" ]; then
+    if [ "${HOPLON_VM_VERIFY:-warn}" = "strict" ]; then
+      warn "could not fetch SHA512SUMS and HOPLON_VM_VERIFY=strict"
+      return 1
+    fi
     warn "could not fetch SHA512SUMS; skipping image verification"
     return 0
   fi
@@ -362,12 +395,16 @@ verify_image() {
     esac
   done <<< "$sums_text"
   if [ -z "$line" ]; then
+    if [ "${HOPLON_VM_VERIFY:-warn}" = "strict" ]; then
+      warn "no checksum listed for $base and HOPLON_VM_VERIFY=strict"
+      return 1
+    fi
     warn "no checksum listed for $base; skipping image verification"
     return 0
   fi
 
   want="${line%% *}"
-  got="$(sha512sum "$file")"
+  got="$("${sha_tool[@]}" "$file")"
   got="${got%% *}"
   [ "$want" = "$got" ] || {
     warn "checksum mismatch for $base"
@@ -664,6 +701,7 @@ cmd_help() {
 Hoplon QEMU VM backend.
 
 Usage:
+  vm.sh                    create if needed, boot, and open a session (default)
   vm.sh create [--force]   download the Debian cloud image, build disk.qcow2,
                            render vm/cloud-init into seed.iso
   vm.sh start              boot the VM (hardware or software acceleration)
@@ -687,11 +725,19 @@ EOF
 }
 
 main() {
-  local cmd="${1:-help}"
+  local cmd="${1:-run}"
   if [ "$#" -gt 0 ]; then
     shift
   fi
   case "$cmd" in
+    run)
+      # Default path: ensure the guest exists, boot it, and open the session.
+      resolve_host_arch
+      validate_env
+      [ -f "$DISK" ] || cmd_create
+      cmd_start
+      cmd_ssh "$@"
+      ;;
     create)
       resolve_host_arch
       validate_env

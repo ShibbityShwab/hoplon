@@ -20,27 +20,13 @@ set -euo pipefail
 HOPLON_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." > /dev/null 2>&1 && pwd -P)"
 
 # Pull optional settings (version, digest) from .env when present, so a pinned
-# HOPLON_OPENCODE_SHA256 in .env actually takes effect. Read .env as data, never
-# as code: only NAME=value lines at column 0 are honored, with optional
-# surrounding quotes stripped. Sourcing it would let a value execute as shell.
-_hoplon_load_env() {
-  [ -f "$1" ] && [ -r "$1" ] || return 0
-  set -a
-  while IFS= read -r _hl_line || [ -n "$_hl_line" ]; do
-    _hl_line="${_hl_line%$'\r'}"
-    [[ "$_hl_line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || continue
-    _hl_name="${_hl_line%%=*}"
-    _hl_value="${_hl_line#*=}"
-    case "$_hl_value" in
-      \'*\') _hl_value="${_hl_value#\'}" && _hl_value="${_hl_value%\'}" ;;
-      \"*\") _hl_value="${_hl_value#\"}" && _hl_value="${_hl_value%\"}" ;;
-    esac
-    export "$_hl_name=$_hl_value"
-  done < "$1"
-  set +a
-  unset _hl_line _hl_name _hl_value 2> /dev/null || true
-}
-_hoplon_load_env "$HOPLON_HOME/.env"
+# HOPLON_OPENCODE_SHA256 in .env actually takes effect. The shared loader reads
+# .env as data (never as code) and refuses unsafe names.
+if [ -f "$HOPLON_HOME/scripts/env.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$HOPLON_HOME/scripts/env.sh"
+  hoplon_load_env "$HOPLON_HOME/.env"
+fi
 
 VERSION="${HOPLON_OPENCODE_VERSION:-1.18.25}"
 REPO="${HOPLON_OPENCODE_REPO:-anomalyco/opencode}"

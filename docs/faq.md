@@ -85,8 +85,9 @@ mode. See [OMO](omo.md).
 No. There is one isolation model: the QEMU virtual machine. The launcher isolates
 state (`HOME`, XDG, credentials) but shares the host kernel, and the permission
 rules are a text denylist, not a containment boundary. For a real boundary, run
-the whole stack in the guest with `HOPLON_ISOLATION=vm`. See
-[Isolation](isolation.md) and [QEMU guest](vm.md).
+the stack in the guest: `scripts/vm.sh` with no arguments creates and boots it
+and opens a shell, and `HOPLON_ISOLATION=vm ./hoplon` does the same through the
+launcher. See [Isolation](isolation.md) and [QEMU guest](vm.md).
 
 ## Can the agent modify Hoplon or the repo?
 
@@ -96,8 +97,10 @@ guest, and the host tree is not reachable. See [QEMU guest](vm.md).
 
 ## Can I run it in a VM?
 
-Yes. `HOPLON_ISOLATION=vm` boots a Debian QEMU/KVM guest with its own kernel,
-filesystem, and user. See [Isolation](isolation.md) and [QEMU guest](vm.md).
+Yes. `HOPLON_ISOLATION=vm ./hoplon` (or `scripts/vm.sh` with no arguments)
+creates the Debian QEMU guest if needed, boots it, and connects. The guest has
+its own kernel, filesystem, and user. See [Isolation](isolation.md) and
+[QEMU guest](vm.md).
 
 ## Does `nmap -sS` work?
 

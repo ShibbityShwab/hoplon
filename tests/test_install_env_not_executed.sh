@@ -19,6 +19,7 @@ trap 'rm -rf "$_tmp"' EXIT
 repo="$_tmp/repo"
 mkdir -p "$repo/scripts" "$repo/bin" "$repo/home"
 cp "$HOPLON_TEST_REPO/scripts/install.sh" "$repo/scripts/install.sh"
+cp "$HOPLON_TEST_REPO/scripts/env.sh" "$repo/scripts/env.sh"
 chmod +x "$repo/scripts/install.sh"
 
 marker="$_tmp/pwned"

@@ -211,8 +211,11 @@
       }
     },
 
+    // preemptive-compaction is disabled on purpose: Magic Context is the single
+    // compactor and two compactors conflict. context-window-monitor is not a
+    // valid hook id in OMO 5.0.0-beta.62, so listing it did nothing and it is
+    // removed rather than left as dead config.
     "disabled_hooks": [
-      "context-window-monitor",
       "preemptive-compaction",
       "anthropic-context-window-limit-recovery"
     ],

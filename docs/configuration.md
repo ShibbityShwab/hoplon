@@ -48,13 +48,16 @@ two systems compacting at once.
 
 Hoplon runs YOLO by default, with guards on destructive commands. The matcher
 is a text denylist, not a containment boundary: it takes the last matching rule,
-so specific rules sit after the `*` catch-all, and wrappers can bypass it.
+so specific rules sit after the `*` catch-all. Wrapper and interpreter forms
+(`bash -c`, `sh -c`, `python -c`, `perl -e`) and paths or pipes into a guarded
+command are denied explicitly, but no denylist is complete.
 
 | Tool | Setting |
 | --- | --- |
 | `read` | `allow`, except `*.env` and `*.env.*` ask, `*.env.example` allow |
 | `edit`, `glob`, `grep`, `list`, `task`, `todowrite`, `question` | `allow` |
-| `webfetch`, `websearch`, `lsp`, `doom_loop`, `external_directory` | `allow` |
+| `webfetch`, `websearch`, `lsp`, `doom_loop` | `allow` |
+| `external_directory` | `ask` |
 | `bash` | `allow`, with `ask`/`deny` guards below |
 
 Bash guards:
@@ -69,11 +72,15 @@ Bash guards:
 | `*sudo *` | ask |
 | `*:(){*` (fork bomb) | ask |
 | `git push*--force*`, `git push*-f*` | ask |
+| `*bash *-c*`, `*sh *-c*` (shell wrappers) | deny |
+| `*python*-c*`, `*perl *-e*` (interpreters) | deny |
+| `*/bin/rm*`, `command rm*`, pipes into a shell | deny |
 
-These guards are broad but not exhaustive. `bash -c 'rm -rf /'` and other
-wrappers bypass the match, and unusual flag orders slip through. Treat YOLO mode
-as host-level authority; the QEMU guest (`HOPLON_ISOLATION=vm`) is the real
-boundary. See [Security](security.md) and [QEMU guest](vm.md).
+The guard list is broad but not exhaustive. It denies the common wrapper and
+interpreter routes, but unusual wrappers, encodings, and flag orders can still
+slip through. Treat YOLO mode as host-level authority; the QEMU guest
+(`HOPLON_ISOLATION=vm`) is the real boundary. See [Security](security.md) and
+[QEMU guest](vm.md).
 
 ### Provider
 
@@ -156,7 +163,7 @@ This loads the operator persona and rules of engagement.
 | `compaction.prune` | `false` |
 | `experimental.batch_tool` | `true` |
 | `experimental.openTelemetry` | `false` |
-| `experimental.continue_loop_on_deny` | `true` |
+| `experimental.continue_loop_on_deny` | `false` |
 | `experimental.mcp_timeout` | `30000` |
 | `experimental.primary_tools` | `["edit", "bash", "task", "write"]` |
 | `attachment.image.auto_resize` | `true` |

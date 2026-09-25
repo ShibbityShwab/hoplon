@@ -46,15 +46,17 @@ Check that the model is one of the seven allowlisted uncensored models. The
 
 The VM backend needs the QEMU system binary for your architecture
 (`qemu-system-x86_64`, or `qemu-system-aarch64` on arm64), `qemu-img`,
-`xorriso`, and `ssh-keygen`. Build the guest before booting it:
+`xorriso`, and `ssh-keygen`. With no arguments it creates the guest if needed,
+boots it, and opens a shell:
 
 ```bash
-scripts/vm.sh create
-scripts/vm.sh start
+scripts/vm.sh
 ```
 
-Check the detected accelerator with `scripts/vm.sh status`. See
-[QEMU guest](vm.md).
+The explicit subcommands (`create`, `start`, `ssh`, `status`, `stop`,
+`destroy`) still work, and `HOPLON_ISOLATION=vm ./hoplon` runs the same backend
+through the launcher. Check the detected accelerator with `scripts/vm.sh status`.
+See [QEMU guest](vm.md).
 
 ## QEMU reports "not a valid accelerator" or the guest is very slow
 

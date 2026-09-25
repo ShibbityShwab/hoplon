@@ -105,21 +105,42 @@ write_files:
           return 127
         fi
 
-        printf 'hoplon: installing %s on demand (set HOPLON_AUTO_INSTALL=0 to disable)\n' "$cmd" >&2
-        if hoplon-tool install "$cmd" && command -v "$cmd" > /dev/null 2>&1; then
-          local rc=0
-          if "$cmd" "$@"; then
-            rc=0
-          else
-            rc=$?
+        # Some tools install under a different command name (radare2 ships as
+        # rizin, theharvester as theHarvester, ncat with nmap). Ask hoplon-tool
+        # for the command to run and fall back to the invoked name.
+        local run="$cmd" resolved=""
+        if resolved="$(hoplon-tool resolve "$cmd" 2> /dev/null)"; then
+          if [ -n "$resolved" ]; then
+            run="$resolved"
           fi
-          unset HOPLON_AUTOTOOL_BUSY
-          return "$rc"
         fi
 
-        printf 'hoplon: could not install %s; see: hoplon-tool status\n' "$cmd" >&2
+        printf 'hoplon: installing %s on demand (set HOPLON_AUTO_INSTALL=0 to disable)\n' "$cmd" >&2
+        if ! hoplon-tool install "$cmd"; then
+          printf 'hoplon: could not install %s; see: hoplon-tool status\n' "$cmd" >&2
+          unset HOPLON_AUTOTOOL_BUSY
+          return 127
+        fi
+
+        # Prefer the resolved command; fall back to the invoked name only when
+        # the resolved one is absent and the invoked one is present.
+        if ! command -v "$run" > /dev/null 2>&1 && [ "$run" != "$cmd" ] &&
+          command -v "$cmd" > /dev/null 2>&1; then
+          run="$cmd"
+        fi
+
+        if ! command -v "$run" > /dev/null 2>&1; then
+          printf 'hoplon: %s installed but no %s command appeared; run: hoplon-tool status\n' "$cmd" "$run" >&2
+          unset HOPLON_AUTOTOOL_BUSY
+          return 127
+        fi
+
+        # Clear the re-entry guard before running the tool, so the tool itself
+        # can still trigger on-demand installs for its own helpers.
         unset HOPLON_AUTOTOOL_BUSY
-        return 127
+        local rc=0
+        "$run" "$@" || rc=$?
+        return "$rc"
       }
       if [ -n "${BASH_VERSION:-}" ]; then
         export -f command_not_found_handle 2> /dev/null || true
@@ -147,7 +168,9 @@ write_files:
       AUTOTOOL_HOOK=/etc/profile.d/hoplon-autotool.sh
 
       # Optional engagements 9p share. Its absence is normal and never fatal.
-      if [ -n "${HOPLON_VM_SHARE_TAG:-}" ] && ! mountpoint -q /mnt/engagements; then
+      # A bare guest (HOPLON_VM_TOOLS=none) has no tooling and skips the share.
+      if [ "$HOPLON_VM_TOOLS" != "none" ] && [ -n "${HOPLON_VM_SHARE_TAG:-}" ] &&
+        ! mountpoint -q /mnt/engagements; then
         mkdir -p /mnt/engagements
         modprobe 9pnet_virtio 2> /dev/null || true
         modprobe 9p 2> /dev/null || true
@@ -221,6 +244,12 @@ write_files:
           printf 'hoplon: clone failed: %s\n' "$HOPLON_REPO_URL"
         fi
       fi
+      # The clone is owned by root, but install.sh runs as the hoplon user and
+      # must write bin/ and home/ inside the checkout. Hand the tree to hoplon
+      # first, otherwise the first mkdir fails and no hoplon command appears.
+      if [ -d "$HOPLON_SRC" ]; then
+        chown -R hoplon:hoplon "$HOPLON_SRC" 2> /dev/null || true
+      fi
       if [ -x "$HOPLON_SRC/scripts/install.sh" ]; then
         if runuser -u hoplon -- env HOPLON_HOME="$HOPLON_SRC" HOME=/home/hoplon \
           "$HOPLON_SRC/scripts/install.sh"; then
@@ -228,6 +257,14 @@ write_files:
         else
           printf 'hoplon: install.sh exited non-zero\n'
         fi
+      fi
+
+      # Verify the hoplon command resolves on the operator user's PATH. A login
+      # shell picks up ~/.local/bin, which install.sh populates.
+      if runuser -u hoplon -- bash -lc 'command -v hoplon' > /dev/null 2>&1; then
+        printf 'hoplon: hoplon command is on PATH for user hoplon\n'
+      else
+        printf 'hoplon: warning: hoplon command not on PATH for user hoplon\n'
       fi
 
       # Expose hoplon-tool on PATH and keep the on-demand hook in place. The

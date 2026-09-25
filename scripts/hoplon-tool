@@ -4,8 +4,8 @@
 #
 # A small guest-side CLI that provisions red-team tools one at a time instead
 # of preloading the whole arsenal. It is the front end to scripts/toolchain.sh:
-# list, known, and suggest read the known tool set, install delegates the real
-# work to toolchain.sh, and status reports what is already on the box.
+# list, known, suggest, and resolve read the known tool set, install delegates
+# the real work to toolchain.sh, and status reports what is already on the box.
 #
 # It is normally invoked by /etc/profile.d/hoplon-autotool.sh when the shell
 # cannot find a command, but it is safe to run by hand.
@@ -17,11 +17,13 @@
 #   hoplon-tool install all          install the full red-team toolset
 #   hoplon-tool known NAME           exit 0 when NAME is a known tool
 #   hoplon-tool suggest NAME         print the tool that provides NAME
+#   hoplon-tool resolve NAME         print the command NAME runs as after install
 #   hoplon-tool status               print which tools are already present
 #   hoplon-tool help
 #
 # Environment:
-#   HOPLON_TOOL_SUDO=0   never self-elevate with sudo (used by the tests)
+#   HOPLON_TOOL_SUDO=0   never self-elevate with sudo, here or in toolchain.sh
+#                        (used by the tests)
 #
 # The installer finds scripts/toolchain.sh next to this script, following any
 # symlink, so the repo copy and an installed /usr/local/bin/hoplon-tool link
@@ -68,11 +70,14 @@ usage: hoplon-tool <command> [args]
   install all          install the full red-team toolset
   known NAME           exit 0 when NAME is a known tool or core package
   suggest NAME         print the tool that provides NAME, or nothing
+  resolve NAME         print the command NAME runs as after install
   status               print which tools are already present
   help                 show this help
 
-Aliases are accepted for install and known: for example nxc resolves to
-netexec. Set HOPLON_TOOL_SUDO=0 to stop self-elevation with sudo.
+Aliases are accepted for install, known, and resolve: for example nxc resolves
+to netexec, radare2 runs as rizin, theharvester runs as theHarvester, and ncat
+comes from the nmap package. Set HOPLON_TOOL_SUDO=0 to stop self-elevation
+with sudo.
 EOF
 }
 
@@ -95,7 +100,8 @@ alias_target() {
     fls) printf 'sleuthkit' ;;
     vol) printf 'volatility3' ;;
     x86_64-w64-mingw32-gcc | i686-w64-mingw32-gcc) printf 'mingw-w64' ;;
-    ncat | nc) printf 'netcat-openbsd' ;;
+    ncat) printf 'nmap' ;;
+    nc) printf 'netcat-openbsd' ;;
     dig | nslookup | host) printf 'dnsutils' ;;
     rg) printf 'ripgrep' ;;
     pip3) printf 'python3-pip' ;;
@@ -104,6 +110,43 @@ alias_target() {
     ps) printf 'procps' ;;
     gcc) printf 'build-essential' ;;
     go) printf 'golang' ;;
+    *) printf '' ;;
+  esac
+}
+
+# Map an invoked command to the command that actually exists after install.
+# Some tools ship under a different name than the package they arrive in:
+# radare2 is provided by rizin, theharvester by theHarvester, ncat by the nmap
+# package. Empty output means the invoked name is already the command.
+command_alias() {
+  case "$1" in
+    radare2 | rz-bin) printf 'rizin' ;;
+    theharvester | theHarvester | theHarvester.py) printf 'theHarvester' ;;
+    ncat) printf 'ncat' ;;
+    nxc | netexec) printf 'nxc' ;;
+    impacket | impacket-smbserver | impacket-secretsdump | impacket-psexec | impacket-wmiexec)
+      printf 'impacket-smbserver'
+      ;;
+    bloodhound | bloodhound-python) printf 'bloodhound-python' ;;
+    ldap-utils | ldapsearch) printf 'ldapsearch' ;;
+    binutils | objdump | strings) printf 'objdump' ;;
+    pwntools | pwn | pwnlib) printf 'pwn' ;;
+    qemu-user | qemu-x86_64 | qemu-aarch64 | qemu-arm) printf 'qemu-x86_64' ;;
+    'afl++' | afl-fuzz) printf 'afl-fuzz' ;;
+    boofuzz | boo) printf 'boo' ;;
+    frida-tools | frida) printf 'frida' ;;
+    sleuthkit | fls) printf 'fls' ;;
+    volatility3 | vol) printf 'vol' ;;
+    mingw-w64 | x86_64-w64-mingw32-gcc | i686-w64-mingw32-gcc) printf 'x86_64-w64-mingw32-gcc' ;;
+    netcat-openbsd | nc) printf 'nc' ;;
+    dnsutils | dig | nslookup | host) printf 'dig' ;;
+    ripgrep | rg) printf 'rg' ;;
+    python3-pip | pip3) printf 'pip3' ;;
+    iproute2 | ip) printf 'ip' ;;
+    iputils-ping | ping) printf 'ping' ;;
+    procps | ps) printf 'ps' ;;
+    build-essential | gcc) printf 'gcc' ;;
+    golang | go) printf 'go' ;;
     *) printf '' ;;
   esac
 }
@@ -233,6 +276,20 @@ cmd_suggest() {
   return 0
 }
 
+# Print the command to run for NAME once it is installed. This is what the
+# on-demand shell hook execs, so a package whose binary is named differently
+# (radare2 to rizin, theharvester to theHarvester, ncat from nmap) still runs.
+cmd_resolve() {
+  local name="${1:-}" command
+  [ -n "$name" ] || return 1
+  command="$(command_alias "$name")"
+  if [ -z "$command" ] && list_names | grep -qxF -- "$name"; then
+    command="$(probe_bin "$name")"
+  fi
+  printf '%s\n' "${command:-$name}"
+  return 0
+}
+
 cmd_status() {
   require_toolchain
   local name total=0 present=0
@@ -334,6 +391,7 @@ main() {
       fi
       ;;
     suggest) cmd_suggest "$@" ;;
+    resolve) cmd_resolve "$@" ;;
     status) cmd_status ;;
     help | -h | --help) usage ;;
     *)

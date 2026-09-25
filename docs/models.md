@@ -54,7 +54,7 @@ The OpenCode-native roster in `config/opencode.jsonc`:
 | `asset-qa` | `venice/qwen-3-8-27b` | subagent | 15 | 0.0 | 16384 |
 | `multimodal-looker` | `venice/qwen-3-8-27b` | subagent | 15 | 0.1 | 16384 |
 
-The OMO layer in `config/omo.jsonc` tunes the same agents plus its own roster
+The OMO layer in `config/omo.jsonc` tunes most of the same agents plus its own roster
 (`sisyphus`, `prometheus`, `metis`, `momus`, `hephaestus`, `atlas`,
 `sisyphus-junior`, `librarian`). OMO routing:
 

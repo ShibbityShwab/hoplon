@@ -11,7 +11,10 @@ This page covers getting Hoplon from a clone to a running TUI. It matches
 - Linux or macOS on `x64` or `arm64`
 
 The installer maps `uname -m` values `x86_64`/`amd64` to `x64` and
-`aarch64`/`arm64` to `arm64`. Any other OS exits with an error.
+`aarch64`/`arm64` to `arm64`. Any other OS exits with an error, so the host tier
+is Linux and macOS. On Windows, use WSL2 (which reports Linux and runs the full
+installer) or run the launcher from Git Bash/MSYS2 with the `vm` tier, where the
+guest installs Hoplon itself and no host opencode binary is needed.
 
 Optional, for the MCP servers that need them:
 
@@ -19,7 +22,7 @@ Optional, for the MCP servers that need them:
 - `uvx` for the `cve` server
 - `docker` for the `nuclei`, `sqlmap`, `ffuf`, and `ghidra` servers
 - `qemu-system-x86_64` (or `qemu-system-aarch64` on arm64 hosts), `qemu-img`,
-  and `xorriso` for the `vm` tier
+  `xorriso`, and `ssh-keygen` for the `vm` tier
 
 ## Clone and install
 

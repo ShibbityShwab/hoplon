@@ -14,8 +14,11 @@ skill folder:
 Usage:
     export VENICE_API_KEY=sk-...
     python scripts/refresh_routing.py
-    python scripts/refresh_routing.py --base-url https://api.venice.ai
     python scripts/refresh_routing.py --dry-run        # don't write files
+
+The API base is fixed at ``https://api.venice.ai`` so the Bearer key can never
+be sent to a host of the caller's choosing. Tests may override it with the
+``HOPLON_VENICE_ROUTING_BASE_URL`` environment variable.
 
 Stdlib only — no third-party deps. CI-safe.
 
@@ -110,7 +113,9 @@ def privacy_label(model_id: str, raw_privacy: str | None) -> str:
     return raw_privacy or "unknown"
 
 
-def normalize_model(entry: dict[str, Any]) -> dict[str, Any]:
+def normalize_model(entry: Any) -> dict[str, Any]:
+    if not isinstance(entry, dict):
+        return {}
     spec = entry.get("model_spec") or entry.get("modelSpec") or {}
     capabilities = spec.get("capabilities") or {}
     pricing = spec.get("pricing") or {}
@@ -127,8 +132,7 @@ def normalize_model(entry: dict[str, Any]) -> dict[str, Any]:
         "tier": tier_for_input_price(input_usd),
         "privacy": privacy_label(model_id, spec.get("privacy")),
         "capabilities": {
-            key: bool(capabilities.get(key))
-            for _, key in CAPABILITY_COLUMNS
+            key: bool(capabilities.get(key)) for _, key in CAPABILITY_COLUMNS
         },
         "max_images": capabilities.get("maxImages"),
         "available_context_tokens": spec.get("availableContextTokens"),
@@ -144,7 +148,9 @@ def normalize_model(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def write_snapshot(models: list[dict[str, Any]], traits: dict[str, str], base_url: str) -> None:
+def write_snapshot(
+    models: list[dict[str, Any]], traits: dict[str, str], base_url: str
+) -> None:
     SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "snapshot_date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -153,8 +159,7 @@ def write_snapshot(models: list[dict[str, Any]], traits: dict[str, str], base_ur
             "traits": f"GET {base_url.rstrip('/')}/api/v1/models/traits?type=text",
         },
         "tier_boundaries_usd_per_1m_input": {
-            label: (None if upper == float("inf") else upper)
-            for label, upper in TIERS
+            label: (None if upper == float("inf") else upper) for label, upper in TIERS
         },
         "traits": traits,
         "models": sorted(models, key=lambda m: (m["tier"], m["id"])),
@@ -210,11 +215,15 @@ def render_section(title: str, blurb: str, models: list[dict[str, Any]]) -> str:
             + [fmt_cap(m, key) for _, key in CAPABILITY_COLUMNS]
             + [fmt_ctx(m), fmt_price(m)]
         )
-        rows.append("| " + " | ".join(f"`{c}`" if c == m["id"] else c for c in cells) + " |")
+        rows.append(
+            "| " + " | ".join(f"`{c}`" if c == m["id"] else c for c in cells) + " |"
+        )
     return f"### {title}\n\n{blurb}\n\n" + "\n".join(rows) + "\n"
 
 
-def write_matrix(models: list[dict[str, Any]], traits: dict[str, str], snapshot_date: str) -> None:
+def write_matrix(
+    models: list[dict[str, Any]], traits: dict[str, str], snapshot_date: str
+) -> None:
     by_tier: dict[str, list[dict[str, Any]]] = {label: [] for label, _ in TIERS}
     by_tier["unknown"] = []
     tee_models: list[dict[str, Any]] = []
@@ -228,18 +237,50 @@ def write_matrix(models: list[dict[str, Any]], traits: dict[str, str], snapshot_
             by_tier.setdefault(m["tier"], []).append(m)
 
     sections = [
-        ("XS — `< $0.20 / $0.40` per 1M", "Cheapest path; classification, intent extraction, simple summarization.", by_tier.get("XS", [])),
-        ("S — `$0.20–1 / $0.40–2` per 1M", "General chat, basic agents, light vision.", by_tier.get("S", [])),
-        ("M — `$1–4 / $2–10` per 1M", "Reasoning at moderate depth, strong code, multi-image vision.", by_tier.get("M", [])),
-        ("L — `$4–10 / $10–30` per 1M", "Long context (≥ 200K), heavy reasoning, complex tool use.", by_tier.get("L", [])),
-        ("Frontier — `≥ $10 / ≥ $30` per 1M", "Best-available. Resolve via trait `most_intelligent`.", by_tier.get("Frontier", [])),
-        ("TEE — hardware-attested", "Verify via `GET /api/v1/tee/attestation`.", tee_models),
-        ("E2EE — end-to-end encrypted", "Requires ECDH (secp256k1) / HKDF / AES-256-GCM handshake. See [`venice-chat`](../venice-chat/SKILL.md).", e2ee_models),
+        (
+            "XS — `< $0.20 / $0.40` per 1M",
+            "Cheapest path; classification, intent extraction, simple summarization.",
+            by_tier.get("XS", []),
+        ),
+        (
+            "S — `$0.20–1 / $0.40–2` per 1M",
+            "General chat, basic agents, light vision.",
+            by_tier.get("S", []),
+        ),
+        (
+            "M — `$1–4 / $2–10` per 1M",
+            "Reasoning at moderate depth, strong code, multi-image vision.",
+            by_tier.get("M", []),
+        ),
+        (
+            "L — `$4–10 / $10–30` per 1M",
+            "Long context (≥ 200K), heavy reasoning, complex tool use.",
+            by_tier.get("L", []),
+        ),
+        (
+            "Frontier — `≥ $10 / ≥ $30` per 1M",
+            "Best-available. Resolve via trait `most_intelligent`.",
+            by_tier.get("Frontier", []),
+        ),
+        (
+            "TEE — hardware-attested",
+            "Verify via `GET /api/v1/tee/attestation`.",
+            tee_models,
+        ),
+        (
+            "E2EE — end-to-end encrypted",
+            "Requires ECDH (secp256k1) / HKDF / AES-256-GCM handshake. See [`venice-chat`](../venice-chat/SKILL.md).",
+            e2ee_models,
+        ),
     ]
 
-    trait_rows = "\n".join(
-        f"| `{trait}` | `{model_id}` |" for trait, model_id in sorted(traits.items())
-    ) or "| _none returned_ | _none_ |"
+    trait_rows = (
+        "\n".join(
+            f"| `{trait}` | `{model_id}` |"
+            for trait, model_id in sorted(traits.items())
+        )
+        or "| _none returned_ | _none_ |"
+    )
 
     body = (
         "# Venice text-model routing matrix\n\n"
@@ -275,17 +316,24 @@ def write_matrix(models: list[dict[str, Any]], traits: dict[str, str], snapshot_
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--base-url", default=os.environ.get("VENICE_BASE_URL", DEFAULT_BASE_URL))
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--api-key", default=os.environ.get("VENICE_API_KEY"))
-    parser.add_argument("--dry-run", action="store_true", help="Fetch + normalize but don't write files.")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Fetch + normalize but don't write files.",
+    )
     args = parser.parse_args()
 
     if not args.api_key:
         print("ERROR: set VENICE_API_KEY or pass --api-key", file=sys.stderr)
         return 1
 
-    base = args.base_url.rstrip("/")
+    base = os.environ.get("HOPLON_VENICE_ROUTING_BASE_URL", DEFAULT_BASE_URL).rstrip(
+        "/"
+    )
     models_url = f"{base}/api/v1/models?type=text"
     traits_url = f"{base}/api/v1/models/traits?type=text"
 
@@ -303,7 +351,10 @@ def main() -> int:
 
     raw_models = models_payload.get("data") or []
     if not raw_models:
-        print(f"ERROR: {models_url} returned 0 models — refusing to overwrite snapshot", file=sys.stderr)
+        print(
+            f"ERROR: {models_url} returned 0 models — refusing to overwrite snapshot",
+            file=sys.stderr,
+        )
         return 2
 
     models = [normalize_model(m) for m in raw_models if m.get("id")]

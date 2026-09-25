@@ -19,11 +19,11 @@ Hoplon is an OpenCode distribution for authorized offensive security work. It ru
 | | |
 | --- | --- |
 | **Venice only, uncensored** | `provider.venice.whitelist` allows exactly seven uncensored models. The allowlist is enforced, not a suggestion. |
-| **Portable and isolated** | Its own `HOME` and all four XDG dirs live under `./home`. No host OpenCode or OMO state is read or written, except a host OMO config that would override the routing, which is taken over for the session and restored on exit. |
+| **Portable and isolated** | Its own `HOME` and all four XDG dirs live under `./home`. The launcher reads or writes no host OpenCode or OMO state, except a host OMO config that would override the routing, which is taken over for the session and restored on exit. |
 | **Cross-platform VM** | `HOPLON_ISOLATION=vm` runs the whole stack inside a QEMU guest with its own kernel on Linux, macOS, and Windows. One isolation model, no per-OS sandbox. |
-| **Isolation tiers** | `HOPLON_ISOLATION=host` (default) isolates state on this machine; `vm` boots a Debian QEMU guest with its own kernel, so nothing reaches the host OS. |
+| **Isolation tiers** | `HOPLON_ISOLATION=host` (default) isolates state on this machine; `vm` runs the stack in a Debian QEMU guest with its own kernel, so nothing reaches the host OS. |
 | **ROE-gated specialists** | Six red-team subagents and five offense skills, gated by a mandatory `redteam-roe` skill. |
-| **Pinned MCP tooling** | Venice's official MCP server is enabled by default; every `npx` and `uvx` server is version-pinned. |
+| **Pinned MCP tooling** | Venice's MCP server is enabled by default; every `npx` and `uvx` server is version-pinned. |
 | **Reproducible** | A shell test suite and CI cover the config, the launcher, and the no-dash rule. |
 
 ## Quickstart
@@ -57,6 +57,10 @@ hoplon update            # pull Hoplon and re-fetch the runtime in place
 `hoplon <directory>` passes the directory to OpenCode as its project, so you can
 point Hoplon at any repo without changing your own working directory first.
 
+To run the same stack inside the QEMU guest instead, run
+`HOPLON_ISOLATION=vm ./hoplon`: it creates the guest if needed, boots it, and
+opens a shell. Run `hoplon` there. See [QEMU guest](docs/vm.md).
+
 Run `hoplon doctor` first on a new box to see what the environment can actually
 do.
 
@@ -67,8 +71,8 @@ environment:
 
 | Variable | Effect |
 | --- | --- |
-| `HOPLON_ISOLATION=host\|vm` | where the stack runs: this machine or a Debian QEMU/KVM guest |
-| `HOPLON_VM_TOOLS=base\|core\|full` | guest tooling: minimal with on-demand installs (default) or a preloaded arsenal |
+| `HOPLON_ISOLATION=host\|vm` | where the stack runs: this machine or a Debian QEMU guest |
+| `HOPLON_VM_TOOLS=none\|base\|core\|full` | guest tooling: bare `none`, minimal `base` with on-demand installs (default), or a preloaded `core`/`full` arsenal |
 | `HOPLON_AUTO_INSTALL=0` | in the guest, only suggest a missing tool instead of installing it |
 | `HOPLON_ENABLE_OMO=0` | run plain OpenCode; drops the OMO plugin and its takeover |
 | `HOPLON_VM_ACCEL=kvm\|hvf\|whpx\|tcg` | force the QEMU accelerator instead of auto-detecting it per host |
