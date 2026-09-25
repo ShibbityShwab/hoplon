@@ -1,0 +1,14 @@
+Hoplon
+Copyright (C) 2026 The Hoplon Authors
+
+Hoplon's own code (the launcher, installer, configuration, themes, TUI plugin,
+agents, and the red-team skills written for this distribution) is free software
+licensed under the GNU Affero General Public License, version 3 or (at your
+option) any later version.
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+The full text of that license is in LICENSE. Third-party components that Hoplon
+bundles, vendors, or fetches at runtime keep their own licenses; see
+THIRD_PARTY_NOTICES.md for the component list and the LICENSES/ directory for the
+full text of each non-AGPL license.
