@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>HOPLON social preview (1280x640)</title>
+<style>
+  :root{
+    --iron:#15120e;
+    --iron-raised:#201b15;
+    --iron-edge:#3a3128;
+    --iron-hairline:#262019;
+    --iron-high:#2b241b;
+    --bronze:#c9973f;
+    --bronze-bright:#e3b25c;
+    --bronze-dim:#9c7a38;
+    --bronze-deep:#6f5215;
+    --bronze-pale:#f0d8a8;
+    --bone:#e6ded0;
+    --ash:#9a9080;
+    --ash-dim:#8b8172;
+    --crimson:#d85a45;
+    --crimson-bright:#e87a63;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1280px;height:640px;overflow:hidden;background:var(--iron)}
+  body{
+    position:relative;
+    font-family:"FantasqueSansM Nerd Font Mono","DejaVu Sans Mono","Noto Sans Mono",monospace;
+    color:var(--bone);
+    -webkit-font-smoothing:antialiased;
+  }
+  .layer{position:absolute;inset:0;pointer-events:none}
+
+  /* atmosphere: bronze key light, crimson under-glow, vignette, scanlines */
+  .glow{background:
+    radial-gradient(760px 430px at 30% 32%, rgba(201,151,63,0.16), rgba(201,151,63,0) 64%),
+    radial-gradient(620px 470px at 88% 78%, rgba(216,90,69,0.08), rgba(216,90,69,0) 62%),
+    radial-gradient(560px 340px at 76% 20%, rgba(227,178,92,0.06), rgba(227,178,92,0) 70%)}
+  .scan{background:repeating-linear-gradient(0deg, rgba(230,222,208,0.022) 0 1px, rgba(230,222,208,0) 1px 4px)}
+  .vignette{background:radial-gradient(132% 132% at 46% 44%, rgba(21,18,14,0) 52%, rgba(21,18,14,0.88) 100%)}
+
+  /* viewfinder brackets */
+  .bracket{position:absolute;width:46px;height:46px;border:2px solid var(--bronze-dim);opacity:.75}
+  .bracket.tl{top:26px;left:26px;border-right:0;border-bottom:0}
+  .bracket.tr{top:26px;right:26px;border-left:0;border-bottom:0}
+  .bracket.bl{bottom:26px;left:26px;border-right:0;border-top:0}
+  .bracket.br{bottom:26px;right:26px;border-left:0;border-top:0}
+
+  /* targeting reticle */
+  .reticle{position:absolute;left:940px;top:160px;width:340px;height:340px;opacity:.55}
+
+  /* top status line */
+  .topline{
+    position:absolute;top:50px;left:84px;right:84px;
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:13.5px;letter-spacing:.26em;color:var(--ash-dim);
+  }
+  .tl-left,.tl-right{display:flex;align-items:center}
+  .sq{width:9px;height:9px;background:var(--bronze);display:inline-block;margin-right:12px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--crimson);display:inline-block;margin-right:12px}
+
+  /* wordmark rebuilt from the tui/hoplon-brand.tsx block glyphs (29 cols x 5 rows) */
+  .wordmark{
+    position:absolute;left:84px;top:148px;
+    filter:drop-shadow(0 0 16px rgba(227,178,92,0.30)) drop-shadow(0 0 46px rgba(201,151,63,0.18));
+  }
+
+  .tagline{
+    position:absolute;left:84px;top:322px;
+    font-size:21px;letter-spacing:.06em;color:var(--ash);
+  }
+  .tagline .lambda{color:var(--bronze)}
+
+  .purpose{
+    position:absolute;left:84px;top:406px;
+    font-size:27px;letter-spacing:.01em;color:var(--bone);white-space:nowrap;
+  }
+  .purpose em{font-style:normal;color:var(--crimson)}
+  .purpose strong{font-weight:inherit;color:var(--bronze-bright)}
+
+  .divider{position:absolute;left:84px;right:84px;top:516px;height:1px;background:var(--iron-edge)}
+  .divider::after{content:"";position:absolute;left:0;top:-1px;width:88px;height:3px;background:var(--crimson)}
+
+  .footline{
+    position:absolute;left:84px;right:84px;top:542px;
+    display:flex;justify-content:space-between;
+    font-size:12.5px;letter-spacing:.24em;color:var(--ash-dim);
+  }
+  .footline .right{color:var(--bronze-dim)}
+</style>
+</head>
+<body>
+  <div class="layer glow"></div>
+  <div class="layer scan"></div>
+  <div class="layer vignette"></div>
+
+  <div class="bracket tl"></div>
+  <div class="bracket tr"></div>
+  <div class="bracket bl"></div>
+  <div class="bracket br"></div>
+
+  <svg class="reticle" viewBox="0 0 340 340" width="340" height="340" aria-hidden="true">
+    <g fill="none">
+      <circle cx="170" cy="170" r="166" stroke="#3a3128" stroke-width="1"/>
+      <circle cx="170" cy="170" r="122" stroke="#9c7a38" stroke-width="1" stroke-dasharray="2 8"/>
+      <circle cx="170" cy="170" r="82" stroke="#9c7a38" stroke-width="1.5"/>
+      <circle cx="170" cy="170" r="44" stroke="#c9973f" stroke-width="1.5"/>
+      <path d="M 170 48 A 122 122 0 0 1 292 170" stroke="#d85a45" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <g stroke="#9c7a38" stroke-width="2" stroke-linecap="round">
+      <line x1="170" y1="4" x2="170" y2="30"/>
+      <line x1="170" y1="310" x2="170" y2="336"/>
+      <line x1="4" y1="170" x2="30" y2="170"/>
+      <line x1="310" y1="170" x2="336" y2="170"/>
+    </g>
+    <circle cx="170" cy="170" r="5" fill="#c9973f"/>
+  </svg>
+
+  <div class="topline">
+    <span class="tl-left"><span class="sq"></span>OPERATOR CONSOLE</span>
+    <span class="tl-right"><span class="dot"></span>STATUS // OPERATIONAL</span>
+  </div>
+
+  <svg class="wordmark" width="812" height="140" viewBox="0 0 812 140" role="img" aria-label="HOPLON">
+    <defs>
+      <linearGradient id="wm" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#e3b25c"/>
+        <stop offset="1" stop-color="#c9973f"/>
+      </linearGradient>
+    </defs>
+    <g fill="url(#wm)" shape-rendering="crispEdges">
+      <rect x="0" y="0" width="28" height="28"/>
+      <rect x="84" y="0" width="28" height="28"/>
+      <rect x="140" y="0" width="112" height="28"/>
+      <rect x="280" y="0" width="112" height="28"/>
+      <rect x="420" y="0" width="28" height="28"/>
+      <rect x="560" y="0" width="112" height="28"/>
+      <rect x="700" y="0" width="28" height="28"/>
+      <rect x="784" y="0" width="28" height="28"/>
+      <rect x="0" y="28" width="28" height="28"/>
+      <rect x="84" y="28" width="28" height="28"/>
+      <rect x="140" y="28" width="28" height="28"/>
+      <rect x="224" y="28" width="28" height="28"/>
+      <rect x="280" y="28" width="28" height="28"/>
+      <rect x="364" y="28" width="28" height="28"/>
+      <rect x="420" y="28" width="28" height="28"/>
+      <rect x="560" y="28" width="28" height="28"/>
+      <rect x="644" y="28" width="28" height="28"/>
+      <rect x="700" y="28" width="56" height="28"/>
+      <rect x="784" y="28" width="28" height="28"/>
+      <rect x="0" y="56" width="112" height="28"/>
+      <rect x="140" y="56" width="28" height="28"/>
+      <rect x="224" y="56" width="28" height="28"/>
+      <rect x="280" y="56" width="112" height="28"/>
+      <rect x="420" y="56" width="28" height="28"/>
+      <rect x="560" y="56" width="28" height="28"/>
+      <rect x="644" y="56" width="28" height="28"/>
+      <rect x="700" y="56" width="28" height="28"/>
+      <rect x="756" y="56" width="56" height="28"/>
+      <rect x="0" y="84" width="28" height="28"/>
+      <rect x="84" y="84" width="28" height="28"/>
+      <rect x="140" y="84" width="28" height="28"/>
+      <rect x="224" y="84" width="28" height="28"/>
+      <rect x="280" y="84" width="28" height="28"/>
+      <rect x="420" y="84" width="28" height="28"/>
+      <rect x="560" y="84" width="28" height="28"/>
+      <rect x="644" y="84" width="28" height="28"/>
+      <rect x="700" y="84" width="28" height="28"/>
+      <rect x="784" y="84" width="28" height="28"/>
+      <rect x="0" y="112" width="28" height="28"/>
+      <rect x="84" y="112" width="28" height="28"/>
+      <rect x="140" y="112" width="112" height="28"/>
+      <rect x="280" y="112" width="28" height="28"/>
+      <rect x="420" y="112" width="112" height="28"/>
+      <rect x="560" y="112" width="112" height="28"/>
+      <rect x="700" y="112" width="28" height="28"/>
+      <rect x="784" y="112" width="28" height="28"/>
+    </g>
+  </svg>
+
+  <div class="tagline"><span class="lambda">&#923;</span> offensive security console</div>
+
+  <div class="purpose">Portable <em>uncensored</em> red-team OpenCode on <strong>Venice AI</strong></div>
+
+  <div class="divider"></div>
+  <div class="footline">
+    <span class="left">AUTHORIZED ENGAGEMENTS ONLY</span>
+    <span class="right">PORTABLE // ISOLATED // ATTRIBUTABLE</span>
+  </div>
+</body>
+</html>
