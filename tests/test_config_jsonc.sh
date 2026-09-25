@@ -99,7 +99,7 @@ omo_lines="$(grep -c '"oh-my-openagent@' "$OPENCODE_CFG" || true)"
   fail "expected exactly one pinned oh-my-openagent plugin entry, found $omo_lines"
 grep -q '"oh-my-openagent@5.0.0-beta.62"' "$OPENCODE_CFG" ||
   fail "oh-my-openagent plugin pin is not 5.0.0-beta.62"
-grep -q '"@cortexkit/opencode-magic-context@0.42.2"' "$OPENCODE_CFG" ||
+grep -q '"@cortexkit/opencode-magic-context@0.43.1"' "$OPENCODE_CFG" ||
   fail "magic-context plugin entry is missing"
 plugin_count="$(printf '%s' "$oc_json" | jq -r '.plugin | length')"
 [ "$plugin_count" = "2" ] ||

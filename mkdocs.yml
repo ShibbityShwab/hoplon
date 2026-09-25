@@ -54,6 +54,7 @@ nav:
   - MCP servers: mcp-servers.md
   - Sandbox: sandbox.md
   - Isolation: isolation.md
+  - Magic Context: magic-context.md
   - Rules of Engagement: rules-of-engagement.md
   - OMO: omo.md
   - Architecture: architecture.md

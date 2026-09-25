@@ -1,0 +1,15 @@
+{
+  // ---------------------------------------------------------------------------
+  // Magic Context engine config. The launcher (./hoplon) seeds this into the
+  // isolated home as $HOME/.config/cortexkit/magic-context.jsonc. OpenCode
+  // native compaction is disabled in config/opencode.jsonc, so Magic Context
+  // owns the context window. The historian only summarizes old history, so it
+  // runs on the cheap uncensored Venice flash model rather than the primary.
+  // ---------------------------------------------------------------------------
+  "$schema": "https://raw.githubusercontent.com/cortexkit/magic-context/master/assets/magic-context.schema.json",
+  "historian": {
+    "opencode": {
+      "model": "venice/olafangensan-glm-4.7-flash-heretic"
+    }
+  }
+}

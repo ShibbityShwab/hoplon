@@ -12,7 +12,7 @@
   <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=for-the-badge" alt="PRs welcome"></a>
 </p>
 
-Hoplon is an OpenCode distribution for authorized offensive security work. It runs every request on Venice AI's uncensored model family, carries a red-team agent roster and a rules-of-engagement gate, and keeps its entire runtime inside the repository. Clone it, install the binary, set one API key, and run.
+Hoplon is an OpenCode distribution for authorized offensive security work. It runs every request on Venice AI's uncensored model family, carries a red-team agent roster and a rules-of-engagement gate, and keeps its entire runtime inside the repository. Clone it, run the installer, set one API key, and run.
 
 ## Why Hoplon
 
@@ -27,15 +27,47 @@ Hoplon is an OpenCode distribution for authorized offensive security work. It ru
 
 ## Quickstart
 
+Install with one command:
+
 ```bash
 git clone https://github.com/ShibbityShwab/hoplon.git hoplon
 cd hoplon
-scripts/install.sh
-cp .env.example .env      # then set VENICE_API_KEY
-./hoplon
+scripts/install.sh      # fetch opencode and link the `hoplon` command
+cp .env.example .env    # then set VENICE_API_KEY
+hoplon
 ```
 
-Run `./hoplon doctor` first on a new box to see what the environment can actually do.
+`scripts/install.sh` fetches the pinned opencode binary into `bin/`, then links
+the `hoplon` launcher onto your `PATH` at `$HOME/.local/bin/hoplon`. Override the
+link location with `HOPLON_BIN_DIR`. If that directory is not on your `PATH`, the
+installer prints the exact `export PATH=...` line to add to your shell rc.
+
+From then on the launcher is just `hoplon`, from any directory:
+
+```bash
+hoplon                   # start the TUI in the current directory
+hoplon /path/to/project  # work in another project directory
+hoplon doctor            # report what this box can actually do
+hoplon version           # print the Hoplon and opencode versions
+hoplon update            # pull Hoplon and re-fetch the runtime in place
+```
+
+`hoplon <directory>` passes the directory to OpenCode as its project, so you can
+point Hoplon at any repo without changing your own working directory first.
+
+Run `hoplon doctor` first on a new box to see what the environment can actually
+do.
+
+### Toggles
+
+Set these in `.env` (the launcher sources it) or in the environment:
+
+| Variable | Effect |
+| --- | --- |
+| `HOPLON_ENABLE_OMO=0` | run plain OpenCode; drops the OMO plugin and its takeover |
+| `HOPLON_SANDBOX=1` | wrap the runtime in bubblewrap, hiding the host filesystem while keeping the network |
+| `HOPLON_BIN_DIR` | where `scripts/install.sh` links the `hoplon` command |
+| `HOPLON_OPENCODE_VERSION` | opencode release to fetch; `latest` tracks the newest |
 
 <p align="center">
   <img src="docs/assets/tui.png" alt="The Hoplon TUI on the iron hoplon theme" width="900">
@@ -53,7 +85,7 @@ Run `./hoplon doctor` first on a new box to see what the environment can actuall
 
 | Component | What it is |
 | --- | --- |
-| **Launcher** | `./hoplon` isolates `HOME` and XDG, seeds config, and handles the OMO host-config conflict. |
+| **Launcher** | The `hoplon` command isolates `HOME` and XDG, seeds config, and handles the OMO host-config conflict. |
 | **Harness** | Oh My OpenAgent (OMO) supplies agent and category routing, background tasks, and team mode. Optional; see below. |
 | **Models** | Seven allowlisted Venice uncensored models, routed per agent and category. |
 | **Sandbox** | Optional bubblewrap isolation via `HOPLON_SANDBOX=1`. |

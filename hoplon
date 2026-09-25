@@ -22,16 +22,38 @@
 # is stripped from the seeded config, no $HOME/.omo/omo.jsonc is seeded, and the
 # host OMO takeover is skipped. Magic Context is unaffected.
 #
-# Usage:
-#   ./hoplon                 start the TUI in the current directory
-#   ./hoplon run "..."       one-shot prompt
-#   ./hoplon <project>       start the TUI on a project directory
-#   ./hoplon --help          opencode CLI help
+# Usage (after scripts/install.sh links the `hoplon` command onto PATH):
+#   hoplon                   start the TUI in the current directory
+#   hoplon <project>         start the TUI on a project directory
+#   hoplon run "..."         one-shot prompt
+#   hoplon doctor            report what this environment can do, then exit
+#   hoplon version           print the Hoplon and opencode versions, then exit
+#   hoplon update            update Hoplon in place (scripts/update.sh)
+#   hoplon --help            opencode CLI help
 # =============================================================================
 set -euo pipefail
 
-# Resolve the repo root regardless of how the script was invoked.
-HOPLON_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" > /dev/null 2>&1 && pwd -P)"
+# Resolve the repo root regardless of how the script was invoked, following
+# symlinks first so the `hoplon` command linked onto PATH still finds its repo.
+# `readlink -f` is a GNU extension that older BSD/macOS lack, so fall back to a
+# manual link walk with plain `readlink`.
+_hoplon_self="${BASH_SOURCE[0]}"
+if command -v readlink > /dev/null 2>&1 &&
+  _hoplon_real="$(readlink -f -- "$_hoplon_self" 2> /dev/null)" &&
+  [ -n "$_hoplon_real" ]; then
+  _hoplon_self="$_hoplon_real"
+else
+  while [ -h "$_hoplon_self" ]; do
+    _hoplon_dir="$(cd -P "$(dirname "$_hoplon_self")" > /dev/null 2>&1 && pwd)"
+    _hoplon_link="$(readlink -- "$_hoplon_self")"
+    case "$_hoplon_link" in
+      /*) _hoplon_self="$_hoplon_link" ;;
+      *) _hoplon_self="$_hoplon_dir/$_hoplon_link" ;;
+    esac
+  done
+fi
+HOPLON_HOME="$(cd "$(dirname "$_hoplon_self")" > /dev/null 2>&1 && pwd -P)"
+unset _hoplon_self _hoplon_real _hoplon_dir _hoplon_link 2> /dev/null || true
 export HOPLON_HOME
 
 # Capture the real account home before we isolate HOME (for opt-in passthrough).
@@ -46,6 +68,16 @@ if [ -f "$HOPLON_HOME/.env" ]; then
   # shellcheck disable=SC1091
   . "$HOPLON_HOME/.env"
   set +a
+fi
+
+# ---------------------------------------------------------------------------
+# `hoplon update`: hand off to the updater with the host environment intact.
+# Runs before HOME is isolated so the re-run installer links and seeds against
+# the real account home rather than the isolated one.
+# ---------------------------------------------------------------------------
+if [ "${1:-}" = "update" ]; then
+  shift
+  exec "$HOPLON_HOME/scripts/update.sh" "$@"
 fi
 
 # ---------------------------------------------------------------------------
@@ -71,11 +103,66 @@ export OPENCODE_DISABLE_AUTOUPDATE=1
 export OMO_DISABLE_POSTHOG=1
 export OMO_SEND_ANONYMOUS_TELEMETRY=0
 
+# Keep the Magic Context diagnostic log inside the isolated home. Its default is
+# $TMPDIR/opencode/magic-context, which a host Magic Context install would share.
+export MAGIC_CONTEXT_LOG_PATH="$HOME/.cache/cortexkit/magic-context.log"
+
 # OMO harness toggle. Enabled by default; set to 0 to run pure OpenCode.
 export HOPLON_ENABLE_OMO="${HOPLON_ENABLE_OMO:-1}"
 
 # Bundled binary first on PATH.
 export PATH="$HOPLON_HOME/bin:$PATH"
+
+# ---------------------------------------------------------------------------
+# Informational commands. These report and exit without seeding or launching,
+# and run before the preflight so `hoplon version` always exits 0 even on a
+# fresh checkout. They must not fall through to opencode.
+# ---------------------------------------------------------------------------
+_hoplon_have() { command -v "$1" > /dev/null 2>&1 && printf 'yes' || printf 'NO'; }
+
+_hoplon_version_file() {
+  if [ -f "$HOPLON_HOME/VERSION" ]; then
+    tr -d '[:space:]' < "$HOPLON_HOME/VERSION"
+  else
+    printf 'unknown'
+  fi
+}
+
+_hoplon_doctor() {
+  printf 'hoplon doctor\n'
+  printf '  repo                %s\n' "$HOPLON_HOME"
+  printf '  opencode            %s\n' "$([ -x "$HOPLON_HOME/bin/opencode" ] && "$HOPLON_HOME/bin/opencode" --version 2> /dev/null || echo missing)"
+  printf '  VENICE_API_KEY      %s\n' "$([ -n "${VENICE_API_KEY:-}" ] && echo set || echo MISSING)"
+  printf '  bwrap (sandbox)     %s\n' "$(_hoplon_have bwrap)"
+  printf '  node / npx          %s / %s\n' "$(_hoplon_have node)" "$(_hoplon_have npx)"
+  printf '  uvx (python MCP)    %s\n' "$(_hoplon_have uvx)"
+  printf '  docker (docker MCP) %s\n' "$(_hoplon_have docker)"
+  printf '  weapons             '
+  for _b in nmap nuclei sqlmap ffuf msfconsole ghidra; do printf '%s:%s ' "$_b" "$(_hoplon_have "$_b")"; done
+  printf '\n'
+  printf '  venice reachable    '
+  if command -v curl > /dev/null 2>&1 && curl -fsS --max-time 6 https://api.venice.ai/api/v1/models > /dev/null 2>&1; then
+    printf 'yes\n'
+  else
+    printf 'no (offline or curl missing)\n'
+  fi
+}
+
+case "${1:-}" in
+  version | --version)
+    printf 'hoplon %s\n' "$(_hoplon_version_file)"
+    if [ -x "$HOPLON_HOME/bin/opencode" ]; then
+      printf 'opencode %s\n' "$("$HOPLON_HOME/bin/opencode" --version 2> /dev/null || printf 'unknown')"
+    else
+      printf 'opencode missing (run scripts/install.sh)\n'
+    fi
+    exit 0
+    ;;
+  doctor)
+    _hoplon_doctor
+    exit 0
+    ;;
+esac
 
 # ---------------------------------------------------------------------------
 # Preflight.
@@ -105,44 +192,16 @@ if [ "${HOPLON_SHARE_GH:-0}" = "1" ] && [ -d "$HOPLON_HOST_HOME/.config/gh" ] &&
 fi
 
 # ---------------------------------------------------------------------------
-# `hoplon doctor`: report what this environment can actually do, then exit.
-# Does not seed or launch.
-# ---------------------------------------------------------------------------
-_hoplon_have() { command -v "$1" > /dev/null 2>&1 && printf 'yes' || printf 'NO'; }
-_hoplon_doctor() {
-  printf 'hoplon doctor\n'
-  printf '  repo                %s\n' "$HOPLON_HOME"
-  printf '  opencode            %s\n' "$([ -x "$HOPLON_HOME/bin/opencode" ] && "$HOPLON_HOME/bin/opencode" --version 2> /dev/null || echo missing)"
-  printf '  VENICE_API_KEY      %s\n' "$([ -n "${VENICE_API_KEY:-}" ] && echo set || echo MISSING)"
-  printf '  bwrap (sandbox)     %s\n' "$(_hoplon_have bwrap)"
-  printf '  node / npx          %s / %s\n' "$(_hoplon_have node)" "$(_hoplon_have npx)"
-  printf '  uvx (python MCP)    %s\n' "$(_hoplon_have uvx)"
-  printf '  docker (docker MCP) %s\n' "$(_hoplon_have docker)"
-  printf '  weapons             '
-  for _b in nmap nuclei sqlmap ffuf msfconsole ghidra; do printf '%s:%s ' "$_b" "$(_hoplon_have "$_b")"; done
-  printf '\n'
-  printf '  venice reachable    '
-  if command -v curl > /dev/null 2>&1 && curl -fsS --max-time 6 https://api.venice.ai/api/v1/models > /dev/null 2>&1; then
-    printf 'yes\n'
-  else
-    printf 'no (offline or curl missing)\n'
-  fi
-}
-if [ "${1:-}" = "doctor" ]; then
-  _hoplon_doctor
-  exit 0
-fi
-
-# ---------------------------------------------------------------------------
 # Seed phase: repo -> isolated HOME. Copies only, never symlinks. OMO rewrites
 # its config with a temp-file + rename replace, which severs a symlink inode;
 # copying keeps this repo the single source of truth on every launch.
 # ---------------------------------------------------------------------------
 OC="$XDG_CONFIG_HOME/opencode"
-mkdir -p "$OC/themes" "$OC/agents" "$OC/plugins" "$HOME/.omo"
+mkdir -p "$OC/themes" "$OC/agents" "$OC/plugins" "$HOME/.omo" "$HOME/.config/cortexkit" "$HOME/.cache/cortexkit"
 
 # Copy via a temp file and rename, so a concurrent launch never reads a
-# half-written config.
+# half-written config. A missing source is tolerated: the temp copy fails, the
+# rename is skipped, and the previous seeded file (if any) is left in place.
 _hoplon_seed() {
   cp -f "$1" "$2.hoplon-tmp.$$" 2> /dev/null && mv -f "$2.hoplon-tmp.$$" "$2" 2> /dev/null || true
 }
@@ -150,6 +209,11 @@ _hoplon_seed "$HOPLON_HOME/config/opencode.jsonc" "$OC/opencode.jsonc"
 _hoplon_seed "$HOPLON_HOME/config/tui.json" "$OC/tui.json"
 if [ "$HOPLON_ENABLE_OMO" != "0" ]; then
   _hoplon_seed "$HOPLON_HOME/config/omo.jsonc" "$HOME/.omo/omo.jsonc"
+fi
+# Magic Context reads its engine config from the cortexkit dir, not the opencode
+# dir. Guard the source so a checkout without it still launches.
+if [ -f "$HOPLON_HOME/config/magic-context.jsonc" ]; then
+  _hoplon_seed "$HOPLON_HOME/config/magic-context.jsonc" "$HOME/.config/cortexkit/magic-context.jsonc"
 fi
 for _f in "$HOPLON_HOME"/themes/*.json; do [ -f "$_f" ] && _hoplon_seed "$_f" "$OC/themes/$(basename "$_f")"; done
 for _f in "$HOPLON_HOME"/agents/*.md; do [ -f "$_f" ] && _hoplon_seed "$_f" "$OC/agents/$(basename "$_f")"; done

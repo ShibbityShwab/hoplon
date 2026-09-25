@@ -2,13 +2,16 @@
 # =============================================================================
 # Hoplon installer.
 #
-# Fetches a pinned opencode binary into ./bin, prepares the isolated home, and
-# optionally pre-seeds the OMO plugin cache for offline use.
+# Fetches a pinned opencode binary into ./bin, links the `hoplon` command onto
+# PATH, prepares the isolated home, and optionally pre-seeds plugin caches.
 #
 # Overridable via environment:
-#   HOPLON_OPENCODE_VERSION   default 1.18.25 (the version this repo is tested on)
+#   HOPLON_OPENCODE_VERSION   default 1.18.25 (the version this repo is tested
+#                             on); "latest" tracks the newest release
 #   HOPLON_OPENCODE_REPO      default anomalyco/opencode
 #   HOPLON_OPENCODE_SHA256    optional archive digest; verified with sha256sum
+#   HOPLON_BIN_DIR            where the `hoplon` command is linked
+#                             (default $HOME/.local/bin)
 # =============================================================================
 set -euo pipefail
 
@@ -25,7 +28,7 @@ fi
 VERSION="${HOPLON_OPENCODE_VERSION:-1.18.25}"
 REPO="${HOPLON_OPENCODE_REPO:-anomalyco/opencode}"
 OMO_SPEC="oh-my-openagent@5.0.0-beta.62"
-MC_SPEC="@cortexkit/opencode-magic-context@0.42.2"
+MC_SPEC="@cortexkit/opencode-magic-context@0.43.1"
 
 # OMO harness toggle. When 0, the oh-my-openagent cache is not pre-seeded.
 HOPLON_ENABLE_OMO="${HOPLON_ENABLE_OMO:-1}"
@@ -44,7 +47,11 @@ case "$os" in
     exit 1
     ;;
 esac
-url="https://github.com/${REPO}/releases/download/v${VERSION}/${asset}"
+if [ "$VERSION" = "latest" ]; then
+  url="https://github.com/${REPO}/releases/latest/download/${asset}"
+else
+  url="https://github.com/${REPO}/releases/download/v${VERSION}/${asset}"
+fi
 
 mkdir -p "$HOPLON_HOME/bin" "$HOPLON_HOME/home"
 
@@ -103,6 +110,24 @@ printf 'hoplon: installed %s\n' "$HOPLON_HOME/bin/opencode"
 "$HOPLON_HOME/bin/opencode" --version || true
 
 # ---------------------------------------------------------------------------
+# Install the `hoplon` command onto PATH. A symlink back into this checkout
+# means repository updates take effect without re-linking, and the launcher
+# resolves the link to find its own repo.
+# ---------------------------------------------------------------------------
+HOPLON_BIN_DIR="${HOPLON_BIN_DIR:-$HOME/.local/bin}"
+mkdir -p "$HOPLON_BIN_DIR"
+HOPLON_BIN_DIR="$(cd "$HOPLON_BIN_DIR" > /dev/null 2>&1 && pwd -P)"
+ln -sf "$HOPLON_HOME/hoplon" "$HOPLON_BIN_DIR/hoplon"
+printf 'hoplon: linked %s -> %s\n' "$HOPLON_BIN_DIR/hoplon" "$HOPLON_HOME/hoplon"
+case ":${PATH:-}:" in
+  *":$HOPLON_BIN_DIR:"*) ;;
+  *)
+    printf 'hoplon: %s is not on PATH. Add this line to your shell rc:\n' "$HOPLON_BIN_DIR"
+    printf '  export PATH="%s:$PATH"\n' "$HOPLON_BIN_DIR"
+    ;;
+esac
+
+# ---------------------------------------------------------------------------
 # Offline convenience: pre-seed the OMO plugin cache from the host, if present.
 # The cache dir name must match the plugin spec string in config exactly.
 # ---------------------------------------------------------------------------
@@ -141,4 +166,4 @@ printf 'hoplon: vendored host caches (LSP bin, models.dev, OMO runtime) when pre
 
 printf '\nNext steps:\n'
 printf '  1. cp .env.example .env   # then set VENICE_API_KEY\n'
-printf '  2. ./hoplon\n'
+printf '  2. hoplon                 # or ./hoplon if %s is not on PATH\n' "$HOPLON_BIN_DIR"
