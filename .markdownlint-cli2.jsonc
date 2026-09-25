@@ -1,0 +1,8 @@
+{
+  // markdownlint-cli2 options. Rule configuration lives in .markdownlint.jsonc.
+  // The vendored Venice AI skills are upstream files, shipped verbatim, so they
+  // are excluded from linting (their directory prefix is skills/venice-<name>).
+  "config": ".markdownlint.jsonc",
+  "globs": ["**/*.md"],
+  "ignores": ["skills/venice-*/**", "home/**", "node_modules/**", ".git/**"]
+}

@@ -1,0 +1,83 @@
+name: Bug report
+description: Report a reproducible defect in Hoplon.
+title: "[Bug]: "
+labels:
+  - bug
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a report. Check the existing issues
+        first so we do not duplicate work.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: I am running the latest release (see VERSION and CHANGELOG.md).
+          required: true
+        - label: This is not a security vulnerability (those go through the Security tab).
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: Hoplon version
+      description: The contents of the VERSION file.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Other (describe below)
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Relevant versions, for example the output of `./hoplon doctor`.
+      placeholder: "opencode 1.18.25, bash 5.2, bwrap 0.9"
+    validations:
+      required: false
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the defect and what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands. Start from a clean checkout where possible.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Relevant output
+      description: Terminal output or logs. Redact API keys, tokens, and target data.
+      render: shell
+    validations:
+      required: false
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant configuration
+      description: Trimmed config or .env keys (never paste secrets).
+      render: jsonc
+    validations:
+      required: false

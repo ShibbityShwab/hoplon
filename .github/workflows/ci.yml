@@ -1,0 +1,72 @@
+# Continuous integration: tests, shell lint, workflow lint, config validation.
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege by default. No job in this workflow needs more.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run test suite
+        run: bash tests/run.sh
+
+  shell-lint:
+    name: shell lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: shellcheck
+        run: >-
+          docker run --rm
+          -v "$PWD:/repo" -w /repo
+          koalaman/shellcheck:v0.10.0
+          hoplon scripts/*.sh tests/*.sh
+      - name: shfmt
+        run: >-
+          docker run --rm
+          -v "$PWD:/repo" -w /repo
+          mvdan/shfmt:v3.10.0
+          -d -i 2 -ci -sr hoplon scripts/*.sh tests/*.sh
+
+  lint:
+    name: workflow and config lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:latest
+      - name: Validate JSONC configs
+        run: |
+          set -euo pipefail
+          for f in config/*.jsonc; do
+            printf 'validate %s\n' "$f"
+            python3 - "$f" <<'PY' | jq -e . > /dev/null
+          import re
+          import sys
+
+          src = open(sys.argv[1], encoding="utf-8").read()
+          # Match strings first so // and /* inside strings are preserved.
+          token = re.compile(r'("(?:\\.|[^"\\])*")|(//[^\n]*)|(/\*.*?\*/)', re.DOTALL)
+          src = token.sub(lambda m: m.group(1) if m.group(1) else "", src)
+          # JSONC permits trailing commas; JSON does not.
+          src = re.sub(r',(\s*[}\]])', r'\1', src)
+          sys.stdout.write(src)
+          PY
+          done

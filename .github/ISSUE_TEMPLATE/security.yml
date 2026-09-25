@@ -1,0 +1,24 @@
+name: Security report (read first)
+description: Do not report vulnerabilities here. Use the private reporting flow.
+title: "[Security]: "
+labels:
+  - security
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Stop. Do not report security vulnerabilities in a public issue.**
+
+        Report privately through GitHub's private vulnerability reporting:
+
+        https://github.com/ShibbityShwab/hoplon/security/advisories/new
+
+        The security policy at
+        https://github.com/ShibbityShwab/hoplon/security/policy
+        describes the supported versions, what to include in a report, and the
+        disclosure timeline.
+
+        If private advisories are unavailable, open a minimal public issue that
+        asks for a private contact channel and contains no technical detail
+        about the vulnerability.

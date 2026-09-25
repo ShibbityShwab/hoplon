@@ -1,0 +1,42 @@
+# Normalize text files to LF in the repository.
+* text=auto eol=lf
+
+# Shell entry points and helpers stay LF so they run on any host.
+*.sh text eol=lf
+*.bash text eol=lf
+*.ksh text eol=lf
+hoplon text eol=lf
+.editorconfig text eol=lf
+
+# Windows helpers keep CRLF if they are ever added.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Vendored Venice skills: excluded from language statistics and from the
+# no-dash guard because upstream uses en and em dashes.
+skills/venice-* linguist-vendored
+
+# Binary assets: never normalize or attempt a text diff.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.tar.gz binary
+*.tgz binary
+*.gz binary
+*.bz2 binary
+*.xz binary
+*.7z binary
+*.wasm binary
+*.pyc binary

@@ -1,0 +1,32 @@
+# EditorConfig: https://editorconfig.org
+#
+# Defaults apply to every tracked text file. Shell-specific keys are also read
+# by shfmt, so this file is the single source of truth for script formatting.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.{sh,bash,ksh}]
+indent_style = space
+indent_size = 2
+switch_case_indent = true
+space_redirects = true
+shell_variant = bash
+
+[*.py]
+indent_size = 4
+
+[*.{yml,yaml,json,jsonc}]
+indent_size = 2
+
+[*.{md,markdown}]
+trim_trailing_whitespace = false
+
+[Makefile]
+indent_style = tab

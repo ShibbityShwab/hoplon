@@ -1,0 +1,10 @@
+# ShellCheck configuration for Hoplon.
+# https://github.com/koalaman/shellcheck/wiki
+#
+# The launcher and installer intentionally source a user .env that is absent at
+# lint time, and intentionally print single-quoted shell snippets and use
+# boolean chains. Those produce only informational diagnostics, but ShellCheck
+# exits non-zero for them, so they are disabled here rather than in CI.
+shell=bash
+external-sources=false
+disable=SC1090,SC1091,SC2015,SC2016

@@ -1,0 +1,15 @@
+{
+  // Contributor Covenant 3.0 is reproduced verbatim. Its paragraphs are long
+  // single lines, so line-length linting does not apply to that file.
+  "MD013": false,
+  // Third-party notices list source repositories as bare URLs and use
+  // unlabelled fenced blocks on purpose.
+  "MD034": false,
+  "MD040": false,
+  // Allow repeated headings across sections, inline HTML (badges, details),
+  // emphasis used as a label, and files that do not begin with an H1.
+  "MD024": { "siblings_only": true },
+  "MD033": false,
+  "MD036": false,
+  "MD041": false
+}
